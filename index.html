@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1100, user-scalable=yes, maximum-scale=5"/>
+<title>자재관리</title>
+<link rel="icon" type="image/png" href="https://workreportdaesun.github.io/report/app/icon-192.png"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#DFE4EA; --card:#fff; --card-bd:#D1DCE8; --ink:#1A2332; --lbl:#5A7A9A;
+  --field-bg:#F7FAFC; --brand-1:#1E3A5F; --brand-2:#2E5F9E;
+  --ok:#27AE60; --err:#E74C3C; --warn:#F39C12;
+  --font-body:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-mono:"SFMono-Regular",Consolas,Menlo,monospace;
+}
+body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-height:100vh;}
+.wrap{max-width:1100px; margin:0 auto; padding:24px 20px 60px;}
+.hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:12px; padding:16px 20px; margin-bottom:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;}
+.hdr h1{font-size:19px; font-weight:800;}
+.hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
+.toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px;}
+.toolbar .hint{font-size:12px; color:var(--lbl);}
+.btn{border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;}
+.btn-refresh{background:var(--card); border:1px solid var(--card-bd); color:var(--brand-2);}
+.dtable{width:100%; border-collapse:collapse; font-size:13px; background:var(--card); border:1px solid var(--card-bd); border-radius:10px; overflow:hidden;}
+.dtable th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--lbl); background:var(--field-bg); padding:10px 12px; font-weight:700;}
+.dtable td{padding:10px 12px; border-top:1px solid var(--card-bd); color:var(--ink); font-family:var(--font-mono);}
+.dtable td.name{font-family:var(--font-body); font-weight:700;}
+.dtable td.right{text-align:right;}
+.remain-neg{color:var(--err); font-weight:800;}
+.remain-low{color:var(--warn); font-weight:800;}
+.empty{text-align:center; color:var(--lbl); padding:30px; font-size:13px;}
+.summary{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;}
+.sum-card{background:var(--card); border:1px solid var(--card-bd); border-radius:10px; padding:14px; text-align:center;}
+.sum-card .num{font-size:22px; font-weight:800; color:var(--brand-1); font-family:var(--font-mono);}
+.sum-card .lbl{font-size:11px; color:var(--lbl); margin-top:4px;}
+</style>
+</head>
+<body>
+<script src="https://workreportdaesun.github.io/report/admin-gate.js"></script>
+<div class="wrap">
+  <div class="hdr">
+    <div>
+      <h1>📦 자재관리</h1>
+      <div class="proj" id="hdrProject">S-OIL SHAHEEN Project 계장공사 3공구(PKG-1)</div>
+    </div>
+    <div style="font-size:12px;opacity:.85;" id="hdrDate"></div>
+  </div>
+
+  <div class="summary">
+    <div class="sum-card"><div class="num" id="sumItems">-</div><div class="lbl">품목 수</div></div>
+    <div class="sum-card"><div class="num" id="sumShort">-</div><div class="lbl">잔량 부족(음수) 품목</div></div>
+    <div class="sum-card"><div class="num" id="sumUpdated">-</div><div class="lbl">마지막 갱신</div></div>
+  </div>
+
+  <div class="toolbar">
+    <div class="hint">ⓘ 입고량은 작업일보 "자재" 공종, 사용량은 같은 분류명의 "시공" 공종 수량을 합산한 값입니다(자동 계산, 조회 전용).</div>
+    <button type="button" class="btn btn-refresh" onclick="loadMaterialData()">🔄 새로고침</button>
+  </div>
+
+  <table class="dtable">
+    <tr><th>품목(작업분류)</th><th>단위</th><th class="right">입고량</th><th class="right">사용량</th><th class="right">잔량</th></tr>
+    <tbody id="matRows"><tr><td colspan="5" class="empty">불러오는 중...</td></tr></tbody>
+  </table>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+document.getElementById('hdrDate').textContent = new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit', weekday:'short'});
+
+var SUPABASE_URL='https://feymoykefzfwucbrqoja.supabase.co';
+var SUPABASE_KEY='sb_publishable_ANT6G7_ka3IPHRk_4vLtBg_7G9NWW7i';
+var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+
+/* 재고 계산: daily_reports(전체 팀·전체 날짜).items를 스캔해서
+   - 입고량: menu==='자재'인 항목의 qty 합계 (분류명 기준)
+   - 사용량: menu==='시공'인 항목의 qty 합계 (같은 분류명 — 자재 품목명과 시공 작업분류명이
+     report 전체에서 공용이라는 기존 관례를 그대로 사용, ITEM_UNIT/specsByCat와 동일 패턴)
+   - 잔량 = 입고량 - 사용량
+   Connection처럼 FROM/TO 규격에 0.5 가중치를 매기는 건 공정률(%) 계산 전용 규칙이라 여기(실제
+   자재 수량)엔 적용하지 않는다 — FROM 1개+TO 1개를 설치했으면 부품은 실제로 2개 쓴 것과 같다. */
+async function loadMaterialData(){
+  var wrap = document.getElementById('matRows');
+  if(!sbClient){ wrap.innerHTML='<tr><td colspan="5" class="empty">Supabase 연결 실패</td></tr>'; return; }
+  wrap.innerHTML='<tr><td colspan="5" class="empty">불러오는 중...</td></tr>';
+  try{
+    var reportsRes = await sbClient.from('daily_reports').select('items');
+    var settingsRes = await sbClient.from('app_settings').select('item_unit').eq('id','global').single();
+    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="5" class="empty">불러오기 실패</td></tr>'; return; }
+    var itemUnit = (settingsRes.data && settingsRes.data.item_unit) || {};
+
+    var incoming={}, used={};
+    reportsRes.data.forEach(function(row){
+      (Array.isArray(row.items)?row.items:[]).forEach(function(it){
+        if(!it || !it.cat) return;
+        var q = Number(it.qty)||0;
+        if(it.menu==='자재') incoming[it.cat] = (incoming[it.cat]||0) + q;
+        else if(it.menu==='시공') used[it.cat] = (used[it.cat]||0) + q;
+      });
+    });
+
+    var cats = Object.keys(incoming);
+    cats.sort(function(a,b){
+      var remA = (incoming[a]||0) - (used[a]||0);
+      var remB = (incoming[b]||0) - (used[b]||0);
+      return remA - remB;
+    });
+
+    if(!cats.length){
+      wrap.innerHTML='<tr><td colspan="5" class="empty">아직 "자재" 공종으로 입고 기록된 품목이 없습니다</td></tr>';
+    } else {
+      var shortCount = 0;
+      wrap.innerHTML = cats.map(function(cat){
+        var inQty = incoming[cat]||0, useQty = used[cat]||0, rem = inQty - useQty;
+        var unit = itemUnit[cat] || 'EA';
+        var remClass = rem<0 ? 'remain-neg' : (inQty>0 && rem/inQty<0.1 ? 'remain-low' : '');
+        if(rem<0) shortCount++;
+        return '<tr><td class="name">'+cat+'</td><td>'+unit+'</td>'
+          +'<td class="right">'+inQty+'</td><td class="right">'+useQty+'</td>'
+          +'<td class="right '+remClass+'">'+rem+'</td></tr>';
+      }).join('');
+      document.getElementById('sumShort').textContent = shortCount;
+    }
+    document.getElementById('sumItems').textContent = cats.length;
+    document.getElementById('sumUpdated').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){
+    console.error('자재 데이터 불러오기 실패', e);
+    wrap.innerHTML='<tr><td colspan="5" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
+  }
+}
+loadMaterialData();
+</script>
+</body>
+</html>
