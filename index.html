@@ -27,11 +27,11 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
    바깥 카드 색을 그대로 쓰고, iframe 높이는 부모가 내용 높이에 맞춰준다. */
 html.embed, html.embed body{background:transparent;}
 html.embed .hdr{display:none;}
-html.embed .wrap{padding:12px 14px 16px;}
+html.embed .wrap{padding:0;}   /* 바깥 카드가 이미 여백을 준다 — 두 겹이 되지 않게 */
 .hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:12px; padding:16px 20px; margin-bottom:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;}
 .hdr h1{font-size:19px; font-weight:800;}
 .hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
-.toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px;}
+.toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px;}   /* status .toolbar와 동일 */
 .toolbar .hint{font-size:11px; color:var(--lbl); line-height:1.6;}   /* status .note와 동일 */
 /* 버튼 서식은 인원투입계획/실투입 앱과 동일하게 맞춤(2026-08-11 통일) */
 .btn{border:none; border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:inherit;}
