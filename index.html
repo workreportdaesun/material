@@ -39,7 +39,9 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .dtable tr{height:36px;}
 .dtable td{text-align:center; padding:0 8px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); box-sizing:border-box; height:36px; vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .dtable th:last-child, .dtable td:last-child{border-right:none;}
-.dtable td.name{font-weight:700;}
+/* 품목 열 — 접기 화살표(▾)를 셀 왼쪽에 띄워두고 이름만 셀 정중앙에 오게 한다.
+   화살표를 글 흐름에 두면 그 폭(14px)만큼 이름이 오른쪽으로 밀려 가운데가 안 맞았다. */
+.dtable td.name{font-weight:700; position:relative;}
 /* 열 폭 — 품목/규격/구분만 따로, 숫자 열은 균등 */
 .dtable th:nth-child(1){width:14%;} .dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
@@ -72,7 +74,8 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .dtable td.cat-row{font-weight:800;}
 .dtable td.name.sub{border-right-color:transparent;}
 .dtable td.dim{color:var(--lbl);}
-.caret{display:inline-block; width:14px; cursor:pointer; user-select:none; color:var(--brand-2);}
+.caret{position:absolute; left:6px; top:0; height:36px; line-height:36px; width:14px; text-align:center;
+  cursor:pointer; user-select:none; color:var(--brand-2);}
 </style>
 </head>
 <body>
