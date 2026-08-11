@@ -32,7 +32,8 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .dtable{width:100%; border-collapse:collapse; font-family:var(--font-body); font-size:14px;
   font-variant-numeric:tabular-nums; background:var(--card); border:1px solid var(--card-bd);
   border-radius:10px; overflow:hidden; table-layout:fixed;}
-.dtable th{text-align:center; letter-spacing:0; color:var(--lbl); background:var(--field-bg); padding:0 8px; height:36px; font-size:12px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
+/* 머리글도 본문과 같은 14px — 12px로 두니 아래 항목 내용과 크기가 달라 보였다(2026-08-11). */
+.dtable th{text-align:center; letter-spacing:0; color:var(--lbl); background:var(--field-bg); padding:0 8px; height:36px; font-size:14px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
 /* 모든 행 높이를 36px로 똑같이 맞춘다(2026-08-11). 예전엔 td에 세로 padding이 있고 입력칸이
    있는 줄만 그 높이만큼 더 커져서, 입력칸 없는 분류 합계행보다 규격행이 더 높았다.
    세로 padding을 없애고 높이를 고정한 뒤, 입력칸(qty-inp/kind-sel)도 높이를 고정한다. */
@@ -102,9 +103,10 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 
   <table class="dtable">
     <tr>
-      <th>품목(작업분류)</th><th>규격</th><th class="manual">구분</th><th>단위</th>
-      <th class="right manual">계약수량</th><th class="right manual">산출수량</th><th class="right manual">발주수량</th>
-      <th class="right">입고</th><th class="right">출고수량</th><th class="right">잔여수량</th>
+      <!-- 머리글은 붙여쓰지 않고 띄어쓴다(2026-08-11 요청) — "계약수량" → "계약 수량" -->
+      <th>품목 (작업분류)</th><th>규격</th><th class="manual">구분</th><th>단위</th>
+      <th class="right manual">계약 수량</th><th class="right manual">산출 수량</th><th class="right manual">발주 수량</th>
+      <th class="right">입고</th><th class="right">출고 수량</th><th class="right">잔여 수량</th>
     </tr>
     <tbody id="matRows"><tr><td colspan="10" class="empty">불러오는 중...</td></tr></tbody>
   </table>
