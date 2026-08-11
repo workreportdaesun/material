@@ -26,8 +26,8 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .toolbar .hint{font-size:12px; color:var(--lbl);}
 .btn{border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;}
 .btn-refresh{background:var(--card); border:1px solid var(--card-bd); color:var(--brand-2);}
-/* 열이 11개(규격·도급/사급 추가)라 글자·여백을 한 단계씩 줄여 1100px 안에 들어오게 했다.
-   품목 이름은 특히 크게 보여 12px→11.5px로 더 줄이고 줄바꿈 없이 한 줄로 유지한다. */
+/* 열이 10개라 글자·여백을 한 단계씩 줄였다. 품목 이름은 특히 크게 보여 12px→11.5px로
+   더 줄이고 줄바꿈 없이 한 줄로 유지한다. */
 .dtable{width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border:1px solid var(--card-bd); border-radius:10px; overflow:hidden; table-layout:fixed;}
 .dtable th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.2px; color:var(--lbl); background:var(--field-bg); padding:0 8px; height:34px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
 /* 모든 행 높이를 36px로 똑같이 맞춘다(2026-08-11). 예전엔 td에 세로 padding이 있고 입력칸이
@@ -40,14 +40,12 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 /* 열 폭 — 품목/규격/구분만 따로, 숫자 열은 균등 */
 .dtable th:nth-child(1){width:14%;} .dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
-/* 자재구분 탭 */
+/* 자재구분(도급/사급) 선택칸 */
 .kind-sel{width:100%; height:26px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
   padding:0 4px; font-family:var(--font-body); font-size:11.5px; color:var(--ink); cursor:pointer;}
 .kind-sel:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .kind-sel.saved{border-color:var(--ok);}
 .kind-ditto{color:var(--muted); text-align:center; display:block;}
-/* 지정한 구분과 다른 쪽으로 입고가 잡힌 칸 — 지정이 틀렸거나 일보 입력이 틀렸다는 신호 */
-.in-mismatch{color:var(--warn); font-weight:800;}
 .dtable td.right{text-align:right;}
 .remain-neg{color:var(--err); font-weight:800;}
 .remain-low{color:var(--warn); font-weight:800;}
@@ -85,7 +83,7 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
   <div id="migBanner"></div>
 
   <div class="toolbar">
-    <div class="hint">ⓘ <b>구분</b>(도급/사급)은 품목 줄에서 고르면 바로 저장되고 그 품목이 해당 탭으로 들어갑니다 — 규격 줄은 품목의 구분을 그대로 따릅니다(″) · <b>규격</b>은 작업일보 ⚙️설정 "규격 관리"와 자동 연동 · <b>계약/산출/발주</b>는 규격 줄에 입력, 품목 줄은 그 합계 · <b>입고(도급/사급)</b>는 작업일보 "자재" 공종에 실제로 입력된 자재구분(지정과 다르면 주황색), <b>출고</b>는 "시공" 공종 합계 · <b>잔여수량 = 입고계 − 출고</b></div>
+    <div class="hint">ⓘ <b>구분</b>(도급/사급)은 품목 줄에서 고르면 바로 저장됩니다 — 규격 줄은 품목의 구분을 그대로 따릅니다(″) · <b>규격</b>은 작업일보 ⚙️설정 "규격 관리"와 자동 연동 · <b>계약/산출/발주</b>는 규격 줄에 입력, 품목 줄은 그 합계 · <b>입고</b>는 작업일보 "자재" 공종, <b>출고</b>는 "시공" 공종 수량 합계로 자동 계산 · <b>잔여수량 = 입고 − 출고</b></div>
     <div style="display:flex; gap:8px; flex-shrink:0;">
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
       <button type="button" class="btn btn-refresh" onclick="loadMaterialData()">🔄 새로고침</button>
@@ -96,10 +94,9 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
     <tr>
       <th>품목(작업분류)</th><th>규격</th><th class="manual">구분</th><th>단위</th>
       <th class="right manual">계약수량</th><th class="right manual">산출수량</th><th class="right manual">발주수량</th>
-      <th class="right">입고(도급)</th><th class="right">입고(사급)</th><th class="right">입고계</th>
-      <th class="right">출고수량</th><th class="right">잔여수량</th>
+      <th class="right">입고</th><th class="right">출고수량</th><th class="right">잔여수량</th>
     </tr>
-    <tbody id="matRows"><tr><td colspan="12" class="empty">불러오는 중...</td></tr></tbody>
+    <tbody id="matRows"><tr><td colspan="10" class="empty">불러오는 중...</td></tr></tbody>
   </table>
   <div class="save-note" id="saveNote" style="margin-top:8px;"></div>
 </div>
@@ -115,10 +112,10 @@ var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,
 /* 표는 자동 집계 3열 + 직접 입력 3열로 이뤄진다(2026-08-11).
 
    자동 집계 — daily_reports(전체 팀·전체 날짜).items를 스캔해서
-   - 입고수량: menu==='자재'인 항목의 qty 합계 (분류명 기준)
+   - 입고: menu==='자재'인 항목의 qty 합계 (분류명 기준, 자재구분 도급/사급은 안 나눔)
    - 출고수량: menu==='시공'인 항목의 qty 합계 (같은 분류명 — 자재 품목명과 시공 작업분류명이
      report 전체에서 공용이라는 기존 관례를 그대로 사용, ITEM_UNIT/specsByCat와 동일 패턴)
-   - 잔여수량 = 입고수량 - 출고수량 (창고 재고, 2026-08-11 사용자 확정)
+   - 잔여수량 = 입고 - 출고수량 (창고 재고, 2026-08-11 사용자 확정)
    Connection처럼 FROM/TO 규격에 0.5 가중치를 매기는 건 공정률(%) 계산 전용 규칙이라 여기(실제
    자재 수량)엔 적용하지 않는다 — FROM 1개+TO 1개를 설치했으면 부품은 실제로 2개 쓴 것과 같다.
 
@@ -215,9 +212,6 @@ function renderRows(){
     var rem=r.inQty-r.useQty;
     var remClass = rem<0 ? 'remain-neg' : (r.inQty>0 && rem/r.inQty<0.1 ? 'remain-low' : '');
     var kind=kindOf(r.cat);
-    // 지정한 구분과 반대쪽으로 입고가 잡혔으면 그 칸을 주황으로 — 지정/일보 입력 중 하나가 틀린 것
-    var doClass=(kind==='사급' && r.doQty)?'in-mismatch':'';
-    var saClass=(kind==='도급' && r.saQty)?'in-mismatch':'';
     // 구분 칸: 분류 합계행과 규격 없는 단독행에서만 고르고, 규격 줄은 ″로 따라간다
     var kindCell;
     if(r.type==='cat' || r.type==='single'){
@@ -255,12 +249,11 @@ function renderRows(){
     }
     return '<tr'+(r.type==='cat'?' class="cat-tr"':'')+'>'+nameCell+specCell+kindCell+'<td>'+esc(r.unit)+'</td>'
       + manualCells
-      +'<td class="right '+doClass+'">'+num(r.doQty)+'</td><td class="right '+saClass+'">'+num(r.saQty)+'</td>'
       +'<td class="right">'+num(r.inQty)+'</td><td class="right">'+num(r.useQty)+'</td>'
       +'<td class="right '+remClass+'">'+num(rem)+'</td></tr>';
   }).join('');
   wrap.innerHTML = shown ? html
-    : '<tr><td colspan="12" class="empty">표시할 품목이 없습니다</td></tr>';
+    : '<tr><td colspan="10" class="empty">표시할 품목이 없습니다</td></tr>';
 }
 function toggleCat(i){
   var cat=matRows[i]&&matRows[i].cat;
@@ -308,8 +301,8 @@ async function saveMatQty(idx, field, raw){
 
 async function loadMaterialData(){
   var wrap = document.getElementById('matRows');
-  if(!sbClient){ wrap.innerHTML='<tr><td colspan="12" class="empty">Supabase 연결 실패</td></tr>'; return; }
-  wrap.innerHTML='<tr><td colspan="12" class="empty">불러오는 중...</td></tr>';
+  if(!sbClient){ wrap.innerHTML='<tr><td colspan="10" class="empty">Supabase 연결 실패</td></tr>'; return; }
+  wrap.innerHTML='<tr><td colspan="10" class="empty">불러오는 중...</td></tr>';
   setSaveNote('');
   try{
     var reportsRes = await sbClient.from('daily_reports').select('items');
@@ -323,7 +316,7 @@ async function loadMaterialData(){
       matQtyColumnOk=true;
     }
     renderMigBanner();
-    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패</td></tr>'; return; }
+    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="10" class="empty">불러오기 실패</td></tr>'; return; }
     var sd = settingsRes.data || {};
     var itemUnit = sd.item_unit || {};
     materialQty = sd.material_qty || {};
@@ -334,13 +327,10 @@ async function loadMaterialData(){
     /* 입고/출고는 분류 합계와 규격별 합계를 같이 모은다. 일보에서 규격을 안 고르고 넣은 수량은
        어느 규격에도 못 붙이므로, 그런 게 있으면 "(규격 미지정)" 행을 따로 만들어 보여준다 —
        안 그러면 합계행과 규격행 합이 안 맞는 이유가 화면에서 안 보인다. */
-    /* 입고는 자재구분(도급/사급)으로 나눈다 — 작업일보 "자재" 공종의 status가 그 값이다
-       (MENU_CONFIG['자재'].statusOptions=['도급','사급'], workType 라벨은 "자재구분").
-       도급/사급 어느 쪽도 아닌 값(옛 데이터나 미입력)은 어느 열에도 안 들어가지만 입고계에는
-       포함되므로, 도급+사급이 입고계보다 작으면 자재구분이 안 찍힌 수량이 있다는 뜻이다. */
+    /* 입고는 자재구분(도급/사급)으로 나누지 않고 한 열로 합친다(2026-08-11 사용자 요청) —
+       품목마다 '구분' 열에서 도급/사급을 이미 지정하므로 입고를 또 나누면 같은 정보가 두 번
+       나온다. 일보 "자재" 공종의 status(도급/사급)는 집계에 쓰지 않고 수량만 더한다. */
     var incoming={}, used={}, inBySpec={}, useBySpec={}, specSeen={};
-    var inDo={}, inSa={};
-    function addIn(map, cat, k, q){ map[cat]=(map[cat]||0)+q; map[k]=(map[k]||0)+q; }
     reportsRes.data.forEach(function(row){
       (Array.isArray(row.items)?row.items:[]).forEach(function(it){
         if(!it || !it.cat) return;
@@ -348,8 +338,6 @@ async function loadMaterialData(){
         var k = it.cat+'|'+sp;
         if(it.menu==='자재'){
           incoming[it.cat]=(incoming[it.cat]||0)+q; inBySpec[k]=(inBySpec[k]||0)+q;
-          if(it.status==='도급') addIn(inDo, it.cat, k, q);
-          else if(it.status==='사급') addIn(inSa, it.cat, k, q);
         } else if(it.menu==='시공'){
           used[it.cat]=(used[it.cat]||0)+q; useBySpec[k]=(useBySpec[k]||0)+q;
         } else return;
@@ -400,30 +388,30 @@ async function loadMaterialData(){
 
       if(!specs.length){
         matRows.push({type:'single', cat:cat, spec:'', key:cat, unit:unit,
-          inQty:incoming[cat]||0, useQty:used[cat]||0, doQty:inDo[cat]||0, saQty:inSa[cat]||0});
+          inQty:incoming[cat]||0, useQty:used[cat]||0});
         return;
       }
       matRows.push({type:'cat', cat:cat, spec:'', key:cat, unit:unit,
-        inQty:incoming[cat]||0, useQty:used[cat]||0, doQty:inDo[cat]||0, saQty:inSa[cat]||0});
+        inQty:incoming[cat]||0, useQty:used[cat]||0});
       specs.forEach(function(s){
         var sk=cat+'|'+s;
         matRows.push({type:'spec', cat:cat, spec:s, key:sk, unit:unit,
-          inQty:inBySpec[sk]||0, useQty:useBySpec[sk]||0, doQty:inDo[sk]||0, saQty:inSa[sk]||0});
+          inQty:inBySpec[sk]||0, useQty:useBySpec[sk]||0});
       });
       if(blankIn || blankUse){
         matRows.push({type:'blank', cat:cat, spec:'', key:'', unit:unit,
-          inQty:blankIn, useQty:blankUse, doQty:inDo[cat+'|']||0, saQty:inSa[cat+'|']||0});
+          inQty:blankIn, useQty:blankUse});
       }
     });
 
     if(!matRows.length){
-      wrap.innerHTML='<tr><td colspan="12" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
+      wrap.innerHTML='<tr><td colspan="10" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
     } else {
       renderRows();
     }
   }catch(e){
     console.error('자재 데이터 불러오기 실패', e);
-    wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
+    wrap.innerHTML='<tr><td colspan="10" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
   }
 }
 /* 작업일보 ⚙️설정에서 규격·작업분류·단위를 고치면 새로고침 없이 바로 따라간다 —
