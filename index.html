@@ -41,7 +41,7 @@ html.embed .wrap{padding:0;}   /* 바깥 카드가 이미 여백을 준다 — �
    전부 본문 글꼴 14px로 맞추고, 숫자 자릿수는 tabular-nums로 세로 정렬을 유지한다. */
 /* 표 틀·글자 서식은 인원동원계획 표(table.dt / .tablewrap)와 동일하게 맞춤(2026-08-11).
    테두리와 모서리는 바깥 .tablewrap이 갖고, 표는 그 안에서 세로로 스크롤된다. */
-.tablewrap{overflow-x:auto; overflow-y:auto; max-height:70vh; border:1px solid var(--card-bd); border-radius:8px;}
+.tablewrap{overflow-x:auto; overflow-y:auto; border:1px solid var(--card-bd); border-radius:8px;}
 .dtable{width:100%; border-collapse:separate; border-spacing:0; font-family:var(--font-body); font-size:12px;
   font-variant-numeric:tabular-nums; background:var(--card); table-layout:fixed; white-space:nowrap;}
 /* 머리글도 본문과 같은 14px — 12px로 두니 아래 항목 내용과 크기가 달라 보였다(2026-08-11). */
@@ -116,7 +116,7 @@ html.embed .wrap{padding:0;}   /* 바깥 카드가 이미 여백을 준다 — �
     </div>
   </div>
 
-  <div class="tablewrap">
+  <div class="tablewrap" id="matWrap">
   <table class="dtable">
     <tr>
       <!-- 머리글은 붙여쓰지 않고 띄어쓴다(2026-08-11 요청) — "계약수량" → "계약 수량" -->
@@ -284,6 +284,7 @@ function renderRows(){
   }).join('');
   wrap.innerHTML = shown ? html
     : '<tr><td colspan="10" class="empty">표시할 품목이 없습니다</td></tr>';
+  fitMatTableHeight();
 }
 function toggleCat(i){
   var cat=matRows[i]&&matRows[i].cat;
@@ -467,6 +468,19 @@ function subscribeSettingsRealtime(){
     })
     .subscribe();
 }
+/* 표를 화면 아래 끝까지 채운다(2026-08-11). 고정값(70vh)으로 두면 위쪽 요소 높이에 따라
+   아래에 빈 공간이 남거나 넘쳤다 — 표 틀의 실제 위치를 재서 남는 높이를 전부 준다.
+   저장 안내줄이 나중에 채워지므로 그 높이도 빼둔다. */
+function fitMatTableHeight(){
+  var wrap=document.getElementById('matWrap');
+  if(!wrap) return;
+  var note=document.getElementById('saveNote');
+  var reserve=(note?note.getBoundingClientRect().height:0)+16;
+  var top=wrap.getBoundingClientRect().top+(window.scrollY||0);
+  wrap.style.height=Math.max(200, Math.floor(window.innerHeight-top-reserve))+'px';
+}
+window.addEventListener('resize', fitMatTableHeight);
+
 loadMaterialData();
 subscribeSettingsRealtime();
 </script>
