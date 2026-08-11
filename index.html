@@ -32,8 +32,23 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .dtable td{padding:5px 7px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); font-family:var(--font-mono); box-sizing:border-box; height:32px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .dtable th:last-child, .dtable td:last-child{border-right:none;}
 .dtable td.name{font-family:var(--font-body); font-weight:700; font-size:11.5px;}
-/* 열 폭 — 품목/규격만 넓게, 숫자 열은 균등 */
-.dtable th:nth-child(1){width:15%;} .dtable th:nth-child(2){width:12%;} .dtable th:nth-child(3){width:5%;}
+/* 열 폭 — 품목/규격/구분만 따로, 숫자 열은 균등 */
+.dtable th:nth-child(1){width:14%;} .dtable th:nth-child(2){width:11%;}
+.dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
+/* 자재구분 탭 */
+.tabs{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;}
+.tab-btn{border:1px solid var(--card-bd); background:var(--card); color:var(--lbl); border-radius:8px;
+  padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;}
+.tab-btn:hover{border-color:var(--brand-2); color:var(--brand-2);}
+.tab-btn.on{background:var(--brand-2); border-color:var(--brand-2); color:#fff;}
+.tab-btn .cnt{font-size:11px; opacity:.75; margin-left:5px;}
+.kind-sel{width:100%; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
+  padding:3px 4px; font-family:var(--font-body); font-size:11.5px; color:var(--ink); cursor:pointer;}
+.kind-sel:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+.kind-sel.saved{border-color:var(--ok);}
+.kind-ditto{color:var(--muted); text-align:center; display:block;}
+/* 지정한 구분과 다른 쪽으로 입고가 잡힌 칸 — 지정이 틀렸거나 일보 입력이 틀렸다는 신호 */
+.in-mismatch{color:var(--warn); font-weight:800;}
 .dtable td.right{text-align:right;}
 .remain-neg{color:var(--err); font-weight:800;}
 .remain-low{color:var(--warn); font-weight:800;}
@@ -81,21 +96,25 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
   <div id="migBanner"></div>
 
   <div class="toolbar">
-    <div class="hint">ⓘ <b>규격</b>은 작업일보 ⚙️설정 "규격 관리"와 자동 연동됩니다 · <b>계약/산출/발주</b> 수량은 규격 줄에 직접 입력하면 바로 저장되고 분류 줄은 그 합계입니다 · <b>입고(도급/사급)</b>는 작업일보 "자재" 공종의 자재구분, <b>출고</b>는 "시공" 공종 수량 합계로 자동 계산 · <b>잔여수량 = 입고계 − 출고</b>(창고 재고)</div>
+    <div class="hint">ⓘ <b>구분</b>(도급/사급)은 품목 줄에서 고르면 바로 저장되고 그 품목이 해당 탭으로 들어갑니다 — 규격 줄은 품목의 구분을 그대로 따릅니다(″) · <b>규격</b>은 작업일보 ⚙️설정 "규격 관리"와 자동 연동 · <b>계약/산출/발주</b>는 규격 줄에 입력, 품목 줄은 그 합계 · <b>입고(도급/사급)</b>는 작업일보 "자재" 공종에 실제로 입력된 자재구분(지정과 다르면 주황색), <b>출고</b>는 "시공" 공종 합계 · <b>잔여수량 = 입고계 − 출고</b></div>
     <div style="display:flex; gap:8px; flex-shrink:0;">
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
       <button type="button" class="btn btn-refresh" onclick="loadMaterialData()">🔄 새로고침</button>
     </div>
   </div>
 
+  <!-- 자재구분 탭 — 품목마다 지정한 구분(material_qty[분류].kind)으로 거른다. 입고(도급/사급)
+       열은 일보 실적이라 성격이 다르므로 탭과 별개로 그대로 둔다. -->
+  <div class="tabs" id="kindTabs"></div>
+
   <table class="dtable">
     <tr>
-      <th>품목(작업분류)</th><th>규격</th><th>단위</th>
+      <th>품목(작업분류)</th><th>규격</th><th class="manual">구분</th><th>단위</th>
       <th class="right manual">계약수량</th><th class="right manual">산출수량</th><th class="right manual">발주수량</th>
       <th class="right">입고(도급)</th><th class="right">입고(사급)</th><th class="right">입고계</th>
       <th class="right">출고수량</th><th class="right">잔여수량</th>
     </tr>
-    <tbody id="matRows"><tr><td colspan="11" class="empty">불러오는 중...</td></tr></tbody>
+    <tbody id="matRows"><tr><td colspan="12" class="empty">불러오는 중...</td></tr></tbody>
   </table>
   <div class="save-note" id="saveNote" style="margin-top:8px;"></div>
 </div>
@@ -129,6 +148,63 @@ var materialQty={}, matCats=[], matQtyColumnOk=true, specsByCat={};
    한 줄(single)이다. 저장 키는 규격 없는 분류=분류명, 규격행='분류명|규격'. 셀 onchange에는 이
    배열의 인덱스만 넘긴다 — 규격 값에 따옴표(3/8")가 들어있어 문자열을 그대로 박으면 깨진다. */
 var matRows=[], collapsed={};
+/* 자재구분(도급/사급)은 품목(분류) 단위로 하나만 정한다(2026-08-11 사용자 확정) — 규격 줄은
+   분류의 구분을 그대로 따르므로 ″로만 표시한다. 저장은 material_qty[분류].kind 라서 컬럼을
+   더 만들 필요가 없고, 앞으로 만들 자재발주 앱도 같은 자리를 읽으면 된다. */
+var KIND_TABS=[{v:'all',label:'전체'},{v:'도급',label:'도급'},{v:'사급',label:'사급'},{v:'none',label:'미지정'}];
+var activeKind='all';
+function kindOf(cat){
+  var r=materialQty[cat];
+  var k=r?r.kind:'';
+  return (k==='도급'||k==='사급')?k:'';
+}
+function kindMatches(cat){
+  if(activeKind==='all') return true;
+  if(activeKind==='none') return !kindOf(cat);
+  return kindOf(cat)===activeKind;
+}
+function renderTabs(){
+  var cnt={all:0,'도급':0,'사급':0,none:0};
+  matCats.forEach(function(c){
+    cnt.all++;
+    var k=kindOf(c);
+    if(k) cnt[k]++; else cnt.none++;
+  });
+  document.getElementById('kindTabs').innerHTML = KIND_TABS.map(function(t){
+    return '<button type="button" class="tab-btn'+(activeKind===t.v?' on':'')+'" onclick="setKindTab(\''+t.v+'\')">'
+      +t.label+'<span class="cnt">'+cnt[t.v]+'</span></button>';
+  }).join('');
+}
+function setKindTab(v){
+  activeKind=v;
+  renderTabs();
+  renderRows();
+}
+/* 구분을 바꾸면 그 행이 지금 보고 있는 탭에서 빠질 수 있다 — 저장 뒤 표를 다시 그린다. */
+async function saveMatKind(idx, value){
+  var row=matRows[idx];
+  if(!sbClient || !row || !row.cat) return;
+  var cat=row.cat;
+  var sel=document.getElementById('mk-'+idx);
+  setSaveNote('저장 중...');
+  try{
+    var cur=await sbClient.from('app_settings').select('material_qty').eq('id','global').single();
+    if(cur.error) throw new Error(cur.error.message);
+    var merged=(cur.data && cur.data.material_qty) || {};
+    var entry=Object.assign({}, merged[cat]);
+    if(value) entry.kind=value; else delete entry.kind;
+    merged[cat]=entry;
+    var res=await sbClient.from('app_settings').update({material_qty:merged}).eq('id','global');
+    if(res.error) throw new Error(res.error.message);
+    materialQty=merged;
+    if(sel) sel.classList.add('saved');
+    setSaveNote('✓ '+cat+' 구분 '+(value||'해제')+' 저장됨', 'var(--ok)');
+    renderTabs(); renderRows();
+  }catch(e){
+    console.error('자재구분 저장 실패', e);
+    setSaveNote('❌ 저장 실패: '+(e.message||e), 'var(--err)');
+  }
+}
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function num(v){ return (Math.round(v*100)/100); }
 
@@ -170,10 +246,29 @@ function renderCatTotals(){
 
 function renderRows(){
   var wrap=document.getElementById('matRows');
-  wrap.innerHTML = matRows.map(function(r,i){
+  var shown=0;
+  var html = matRows.map(function(r,i){
+    if(!kindMatches(r.cat)) return '';                            // 지금 탭의 구분이 아닌 품목
     if(r.type!=='cat' && r.cat && collapsed[r.cat]) return '';   // 접힌 분류의 하위 줄은 안 그린다
+    shown++;
     var rem=r.inQty-r.useQty;
     var remClass = rem<0 ? 'remain-neg' : (r.inQty>0 && rem/r.inQty<0.1 ? 'remain-low' : '');
+    var kind=kindOf(r.cat);
+    // 지정한 구분과 반대쪽으로 입고가 잡혔으면 그 칸을 주황으로 — 지정/일보 입력 중 하나가 틀린 것
+    var doClass=(kind==='사급' && r.doQty)?'in-mismatch':'';
+    var saClass=(kind==='도급' && r.saQty)?'in-mismatch':'';
+    // 구분 칸: 분류 합계행과 규격 없는 단독행에서만 고르고, 규격 줄은 ″로 따라간다
+    var kindCell;
+    if(r.type==='cat' || r.type==='single'){
+      kindCell='<td class="manual"><select class="kind-sel" id="mk-'+i+'"'+(matQtyColumnOk?'':' disabled')
+        +' onchange="saveMatKind('+i+',this.value)">'
+        +['','도급','사급'].map(function(v){
+            return '<option value="'+v+'"'+(kind===v?' selected':'')+'>'+(v||'-')+'</option>';
+          }).join('')
+        +'</select></td>';
+    } else {
+      kindCell='<td><span class="kind-ditto">″</span></td>';
+    }
     var nameCell, specCell, manualCells;
 
     if(r.type==='cat'){
@@ -197,12 +292,17 @@ function renderRows(){
           +' onchange="saveMatQty('+i+',\''+f.key+'\',this.value)"></td>';
       }).join('');
     }
-    return '<tr'+(r.type==='cat'?' class="cat-tr"':'')+'>'+nameCell+specCell+'<td>'+esc(r.unit)+'</td>'
+    return '<tr'+(r.type==='cat'?' class="cat-tr"':'')+'>'+nameCell+specCell+kindCell+'<td>'+esc(r.unit)+'</td>'
       + manualCells
-      +'<td class="right">'+num(r.doQty)+'</td><td class="right">'+num(r.saQty)+'</td>'
+      +'<td class="right '+doClass+'">'+num(r.doQty)+'</td><td class="right '+saClass+'">'+num(r.saQty)+'</td>'
       +'<td class="right">'+num(r.inQty)+'</td><td class="right">'+num(r.useQty)+'</td>'
       +'<td class="right '+remClass+'">'+num(rem)+'</td></tr>';
   }).join('');
+  wrap.innerHTML = shown ? html
+    : '<tr><td colspan="12" class="empty">'
+      +(activeKind==='none'?'구분을 안 정한 품목이 없습니다 — 분류가 모두 끝났습니다'
+        :'이 구분으로 지정된 품목이 없습니다. "전체" 탭에서 구분 열을 정해주세요.')
+      +'</td></tr>';
 }
 function toggleCat(i){
   var cat=matRows[i]&&matRows[i].cat;
@@ -250,8 +350,8 @@ async function saveMatQty(idx, field, raw){
 
 async function loadMaterialData(){
   var wrap = document.getElementById('matRows');
-  if(!sbClient){ wrap.innerHTML='<tr><td colspan="11" class="empty">Supabase 연결 실패</td></tr>'; return; }
-  wrap.innerHTML='<tr><td colspan="11" class="empty">불러오는 중...</td></tr>';
+  if(!sbClient){ wrap.innerHTML='<tr><td colspan="12" class="empty">Supabase 연결 실패</td></tr>'; return; }
+  wrap.innerHTML='<tr><td colspan="12" class="empty">불러오는 중...</td></tr>';
   setSaveNote('');
   try{
     var reportsRes = await sbClient.from('daily_reports').select('items');
@@ -265,7 +365,7 @@ async function loadMaterialData(){
       matQtyColumnOk=true;
     }
     renderMigBanner();
-    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="11" class="empty">불러오기 실패</td></tr>'; return; }
+    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패</td></tr>'; return; }
     var sd = settingsRes.data || {};
     var itemUnit = sd.item_unit || {};
     materialQty = sd.material_qty || {};
@@ -358,8 +458,9 @@ async function loadMaterialData(){
       }
     });
 
+    renderTabs();
     if(!matRows.length){
-      wrap.innerHTML='<tr><td colspan="11" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
+      wrap.innerHTML='<tr><td colspan="12" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
     } else {
       renderRows();
     }
@@ -370,7 +471,7 @@ async function loadMaterialData(){
     document.getElementById('sumUpdated').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
     console.error('자재 데이터 불러오기 실패', e);
-    wrap.innerHTML='<tr><td colspan="11" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
+    wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
   }
 }
 /* 작업일보 ⚙️설정에서 규격·작업분류·단위를 고치면 새로고침 없이 바로 따라간다 —
@@ -389,7 +490,7 @@ function subscribeSettingsRealtime(){
       if(!payload.new) return;
       if(payload.new.material_qty) materialQty = payload.new.material_qty;
       var k=structKeyOf(payload.new);
-      if(k===lastStructKey){ renderCatTotals(); return; }
+      if(k===lastStructKey){ renderCatTotals(); renderTabs(); return; }
       lastStructKey=k;
       setSaveNote('작업일보 설정이 바뀌어 표를 다시 불러왔습니다');
       loadMaterialData();
