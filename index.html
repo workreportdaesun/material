@@ -32,12 +32,12 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .dtable{width:100%; border-collapse:collapse; font-family:var(--font-body); font-size:14px;
   font-variant-numeric:tabular-nums; background:var(--card); border:1px solid var(--card-bd);
   border-radius:10px; overflow:hidden; table-layout:fixed;}
-.dtable th{text-align:left; letter-spacing:0; color:var(--lbl); background:var(--field-bg); padding:0 8px; height:36px; font-size:12px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
+.dtable th{text-align:center; letter-spacing:0; color:var(--lbl); background:var(--field-bg); padding:0 8px; height:36px; font-size:12px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
 /* 모든 행 높이를 36px로 똑같이 맞춘다(2026-08-11). 예전엔 td에 세로 padding이 있고 입력칸이
    있는 줄만 그 높이만큼 더 커져서, 입력칸 없는 분류 합계행보다 규격행이 더 높았다.
    세로 padding을 없애고 높이를 고정한 뒤, 입력칸(qty-inp/kind-sel)도 높이를 고정한다. */
 .dtable tr{height:36px;}
-.dtable td{padding:0 8px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); box-sizing:border-box; height:36px; vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.dtable td{text-align:center; padding:0 8px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); box-sizing:border-box; height:36px; vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .dtable th:last-child, .dtable td:last-child{border-right:none;}
 .dtable td.name{font-weight:700;}
 /* 열 폭 — 품목/규격/구분만 따로, 숫자 열은 균등 */
@@ -45,18 +45,20 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
 /* 자재구분(도급/사급) 선택칸 */
 .kind-sel{width:100%; height:26px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
-  padding:0 4px; font-family:inherit; font-size:14px; color:var(--ink); cursor:pointer;}
+  padding:0 4px; font-family:inherit; font-size:14px; color:var(--ink); cursor:pointer; text-align:center;}
 .kind-sel:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .kind-sel.saved{border-color:var(--ok);}
 .kind-ditto{color:var(--muted); text-align:center; display:block; font-size:14px;}
 .sub-mark{color:var(--muted); margin-right:4px;}
-.dtable td.right{text-align:right;}
+/* 숫자 열도 가운데 정렬(2026-08-11 사용자 요청) — 원래는 오른쪽 정렬이었다.
+   자릿수 세로 맞춤은 tabular-nums가 계속 해준다. */
+.dtable td.right{text-align:center;}
 .remain-neg{color:var(--err); font-weight:800;}
 .remain-low{color:var(--warn); font-weight:800;}
 .empty{text-align:center; color:var(--lbl); padding:30px; font-size:13px;}
 /* 직접 입력하는 3개 열(계약/산출/발주) — 자동 집계 열과 구분되게 입력칸 모양을 준다. */
 .qty-inp{width:100%; height:26px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:0 5px;
-  font-family:inherit; font-size:14px; font-variant-numeric:tabular-nums; color:var(--ink); text-align:right;}
+  font-family:inherit; font-size:14px; font-variant-numeric:tabular-nums; color:var(--ink); text-align:center;}
 .qty-inp:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .qty-inp.saving{border-color:var(--warn);}
 .qty-inp.saved{border-color:var(--ok);}
