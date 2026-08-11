@@ -25,11 +25,15 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .toolbar .hint{font-size:12px; color:var(--lbl);}
 .btn{border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;}
 .btn-refresh{background:var(--card); border:1px solid var(--card-bd); color:var(--brand-2);}
-.dtable{width:100%; border-collapse:collapse; font-size:13px; background:var(--card); border:1px solid var(--card-bd); border-radius:10px; overflow:hidden;}
-.dtable th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--lbl); background:var(--field-bg); padding:7px 12px; font-weight:700; border-right:1px solid var(--card-bd);}
-.dtable td{padding:7px 12px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); font-family:var(--font-mono); box-sizing:border-box; height:38px;}
+/* 열이 11개(규격·도급/사급 추가)라 글자·여백을 한 단계씩 줄여 1100px 안에 들어오게 했다.
+   품목 이름은 특히 크게 보여 12px→11.5px로 더 줄이고 줄바꿈 없이 한 줄로 유지한다. */
+.dtable{width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border:1px solid var(--card-bd); border-radius:10px; overflow:hidden; table-layout:fixed;}
+.dtable th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.2px; color:var(--lbl); background:var(--field-bg); padding:6px 7px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
+.dtable td{padding:5px 7px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); font-family:var(--font-mono); box-sizing:border-box; height:32px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .dtable th:last-child, .dtable td:last-child{border-right:none;}
-.dtable td.name{font-family:var(--font-body); font-weight:700;}
+.dtable td.name{font-family:var(--font-body); font-weight:700; font-size:11.5px;}
+/* 열 폭 — 품목/규격만 넓게, 숫자 열은 균등 */
+.dtable th:nth-child(1){width:15%;} .dtable th:nth-child(2){width:12%;} .dtable th:nth-child(3){width:5%;}
 .dtable td.right{text-align:right;}
 .remain-neg{color:var(--err); font-weight:800;}
 .remain-low{color:var(--warn); font-weight:800;}
@@ -38,9 +42,9 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .sum-card{background:var(--card); border:1px solid var(--card-bd); border-radius:10px; padding:14px; text-align:center;}
 .sum-card .num{font-size:22px; font-weight:800; color:var(--brand-1); font-family:var(--font-mono);}
 .sum-card .lbl{font-size:11px; color:var(--lbl); margin-top:4px;}
-/* 직접 입력하는 3개 열(계약/산출/발수주) — 자동 집계 열과 구분되게 입력칸 모양을 준다. */
-.qty-inp{width:100%; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:4px 6px;
-  font-family:var(--font-mono); font-size:13px; color:var(--ink); text-align:right;}
+/* 직접 입력하는 3개 열(계약/산출/발주) — 자동 집계 열과 구분되게 입력칸 모양을 준다. */
+.qty-inp{width:100%; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:3px 5px;
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink); text-align:right;}
 .qty-inp:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .qty-inp.saving{border-color:var(--warn);}
 .qty-inp.saved{border-color:var(--ok);}
@@ -77,7 +81,7 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
   <div id="migBanner"></div>
 
   <div class="toolbar">
-    <div class="hint">ⓘ <b>규격</b>은 작업일보 ⚙️설정 "규격 관리"와 자동 연동됩니다(설정에서 고치면 바로 반영) · <b>계약/산출/발수주</b> 수량은 규격 줄에 직접 입력하면 바로 저장되고 분류 줄은 그 합계입니다 · <b>입고/출고수량</b>은 작업일보 "자재"/"시공" 공종 수량 합계로 자동 계산 · <b>잔여수량 = 입고 − 출고</b>(창고 재고)</div>
+    <div class="hint">ⓘ <b>규격</b>은 작업일보 ⚙️설정 "규격 관리"와 자동 연동됩니다 · <b>계약/산출/발주</b> 수량은 규격 줄에 직접 입력하면 바로 저장되고 분류 줄은 그 합계입니다 · <b>입고(도급/사급)</b>는 작업일보 "자재" 공종의 자재구분, <b>출고</b>는 "시공" 공종 수량 합계로 자동 계산 · <b>잔여수량 = 입고계 − 출고</b>(창고 재고)</div>
     <div style="display:flex; gap:8px; flex-shrink:0;">
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
       <button type="button" class="btn btn-refresh" onclick="loadMaterialData()">🔄 새로고침</button>
@@ -87,10 +91,11 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
   <table class="dtable">
     <tr>
       <th>품목(작업분류)</th><th>규격</th><th>단위</th>
-      <th class="right manual">계약수량</th><th class="right manual">산출수량</th><th class="right manual">발수주량</th>
-      <th class="right">입고수량</th><th class="right">출고수량</th><th class="right">잔여수량</th>
+      <th class="right manual">계약수량</th><th class="right manual">산출수량</th><th class="right manual">발주수량</th>
+      <th class="right">입고(도급)</th><th class="right">입고(사급)</th><th class="right">입고계</th>
+      <th class="right">출고수량</th><th class="right">잔여수량</th>
     </tr>
-    <tbody id="matRows"><tr><td colspan="9" class="empty">불러오는 중...</td></tr></tbody>
+    <tbody id="matRows"><tr><td colspan="11" class="empty">불러오는 중...</td></tr></tbody>
   </table>
   <div class="save-note" id="saveNote" style="margin-top:8px;"></div>
 </div>
@@ -113,10 +118,12 @@ var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,
    Connection처럼 FROM/TO 규격에 0.5 가중치를 매기는 건 공정률(%) 계산 전용 규칙이라 여기(실제
    자재 수량)엔 적용하지 않는다 — FROM 1개+TO 1개를 설치했으면 부품은 실제로 2개 쓴 것과 같다.
 
-   직접 입력 — 계약수량/산출수량/발수주량은 일보에서 나올 수 있는 값이 아니라 사람이 넣는 값이라
+   직접 입력 — 계약수량/산출수량/발주수량은 일보에서 나올 수 있는 값이 아니라 사람이 넣는 값이라
    app_settings.material_qty(jsonb)에 {분류명:{contract,takeoff,ordered}} 형태로 저장한다.
    컬럼이 아직 없으면 위 배너에 SQL을 띄우고 입력칸은 잠근다. */
-var MAT_FIELDS=[{key:'contract',label:'계약수량'},{key:'takeoff',label:'산출수량'},{key:'ordered',label:'발수주량'}];
+/* ordered(발주수량)는 앞으로 만들 자재발주 앱이 같은 app_settings.material_qty를 읽고 쓸 자리다 —
+   키 이름(contract/takeoff/ordered)과 '분류명|규격' 키 형식을 그쪽에서도 그대로 써야 한다. */
+var MAT_FIELDS=[{key:'contract',label:'계약수량'},{key:'takeoff',label:'산출수량'},{key:'ordered',label:'발주수량'}];
 var materialQty={}, matCats=[], matQtyColumnOk=true, specsByCat={};
 /* 표의 실제 행 목록. 규격이 있는 분류는 합계행(cat) + 규격행(spec)으로 나뉘고, 규격이 없는 분류는
    한 줄(single)이다. 저장 키는 규격 없는 분류=분류명, 규격행='분류명|규격'. 셀 onchange에는 이
@@ -132,7 +139,7 @@ function setSaveNote(msg, color){
 }
 function renderMigBanner(){
   document.getElementById('migBanner').innerHTML = matQtyColumnOk ? '' :
-    '<div class="migbox">⚠️ <b>app_settings.material_qty</b> 컬럼이 없어 계약/산출/발수주 수량이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.'
+    '<div class="migbox">⚠️ <b>app_settings.material_qty</b> 컬럼이 없어 계약/산출/발주 수량이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.'
     +'<pre>ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS material_qty jsonb DEFAULT \'{}\'::jsonb;</pre></div>';
 }
 function matVal(key, field){
@@ -140,7 +147,7 @@ function matVal(key, field){
   var v=r?r[field]:null;
   return (v===null||v===undefined||v==='')?'':v;
 }
-/* 분류(합계행)의 계약/산출/발수주 = 그 분류 규격행들의 합. 규격이 있는 분류는 합계행에 직접
+/* 분류(합계행)의 계약/산출/발주 = 그 분류 규격행들의 합. 규격이 있는 분류는 합계행에 직접
    입력하지 않으므로(입력칸 없음) 항상 아래 규격들의 합만 보여준다. */
 function catTotal(cat, field){
   var sum=0, has=false;
@@ -192,6 +199,7 @@ function renderRows(){
     }
     return '<tr'+(r.type==='cat'?' class="cat-tr"':'')+'>'+nameCell+specCell+'<td>'+esc(r.unit)+'</td>'
       + manualCells
+      +'<td class="right">'+num(r.doQty)+'</td><td class="right">'+num(r.saQty)+'</td>'
       +'<td class="right">'+num(r.inQty)+'</td><td class="right">'+num(r.useQty)+'</td>'
       +'<td class="right '+remClass+'">'+num(rem)+'</td></tr>';
   }).join('');
@@ -232,7 +240,7 @@ async function saveMatQty(idx, field, raw){
     materialQty=merged;
     if(inp){ inp.classList.remove('saving'); inp.classList.add('saved'); }
     setSaveNote('✓ '+row.cat+(row.spec?' / '+row.spec:'')+' '+(MAT_FIELDS.find(function(f){return f.key===field;})||{}).label+' 저장됨', 'var(--ok)');
-    renderCatTotals();   // 합계행(분류)의 계약/산출/발수주 숫자를 즉시 다시 계산
+    renderCatTotals();   // 합계행(분류)의 계약/산출/발주 숫자를 즉시 다시 계산
   }catch(e){
     console.error('자재 수량 저장 실패', e);
     if(inp) inp.classList.remove('saving');
@@ -242,8 +250,8 @@ async function saveMatQty(idx, field, raw){
 
 async function loadMaterialData(){
   var wrap = document.getElementById('matRows');
-  if(!sbClient){ wrap.innerHTML='<tr><td colspan="8" class="empty">Supabase 연결 실패</td></tr>'; return; }
-  wrap.innerHTML='<tr><td colspan="8" class="empty">불러오는 중...</td></tr>';
+  if(!sbClient){ wrap.innerHTML='<tr><td colspan="11" class="empty">Supabase 연결 실패</td></tr>'; return; }
+  wrap.innerHTML='<tr><td colspan="11" class="empty">불러오는 중...</td></tr>';
   setSaveNote('');
   try{
     var reportsRes = await sbClient.from('daily_reports').select('items');
@@ -257,7 +265,7 @@ async function loadMaterialData(){
       matQtyColumnOk=true;
     }
     renderMigBanner();
-    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="8" class="empty">불러오기 실패</td></tr>'; return; }
+    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="11" class="empty">불러오기 실패</td></tr>'; return; }
     var sd = settingsRes.data || {};
     var itemUnit = sd.item_unit || {};
     materialQty = sd.material_qty || {};
@@ -268,7 +276,13 @@ async function loadMaterialData(){
     /* 입고/출고는 분류 합계와 규격별 합계를 같이 모은다. 일보에서 규격을 안 고르고 넣은 수량은
        어느 규격에도 못 붙이므로, 그런 게 있으면 "(규격 미지정)" 행을 따로 만들어 보여준다 —
        안 그러면 합계행과 규격행 합이 안 맞는 이유가 화면에서 안 보인다. */
+    /* 입고는 자재구분(도급/사급)으로 나눈다 — 작업일보 "자재" 공종의 status가 그 값이다
+       (MENU_CONFIG['자재'].statusOptions=['도급','사급'], workType 라벨은 "자재구분").
+       도급/사급 어느 쪽도 아닌 값(옛 데이터나 미입력)은 어느 열에도 안 들어가지만 입고계에는
+       포함되므로, 도급+사급이 입고계보다 작으면 자재구분이 안 찍힌 수량이 있다는 뜻이다. */
     var incoming={}, used={}, inBySpec={}, useBySpec={}, specSeen={};
+    var inDo={}, inSa={};
+    function addIn(map, cat, k, q){ map[cat]=(map[cat]||0)+q; map[k]=(map[k]||0)+q; }
     reportsRes.data.forEach(function(row){
       (Array.isArray(row.items)?row.items:[]).forEach(function(it){
         if(!it || !it.cat) return;
@@ -276,6 +290,8 @@ async function loadMaterialData(){
         var k = it.cat+'|'+sp;
         if(it.menu==='자재'){
           incoming[it.cat]=(incoming[it.cat]||0)+q; inBySpec[k]=(inBySpec[k]||0)+q;
+          if(it.status==='도급') addIn(inDo, it.cat, k, q);
+          else if(it.status==='사급') addIn(inSa, it.cat, k, q);
         } else if(it.menu==='시공'){
           used[it.cat]=(used[it.cat]||0)+q; useBySpec[k]=(useBySpec[k]||0)+q;
         } else return;
@@ -326,23 +342,24 @@ async function loadMaterialData(){
 
       if(!specs.length){
         matRows.push({type:'single', cat:cat, spec:'', key:cat, unit:unit,
-          inQty:incoming[cat]||0, useQty:used[cat]||0});
+          inQty:incoming[cat]||0, useQty:used[cat]||0, doQty:inDo[cat]||0, saQty:inSa[cat]||0});
         return;
       }
       matRows.push({type:'cat', cat:cat, spec:'', key:cat, unit:unit,
-        inQty:incoming[cat]||0, useQty:used[cat]||0});
+        inQty:incoming[cat]||0, useQty:used[cat]||0, doQty:inDo[cat]||0, saQty:inSa[cat]||0});
       specs.forEach(function(s){
-        matRows.push({type:'spec', cat:cat, spec:s, key:cat+'|'+s, unit:unit,
-          inQty:inBySpec[cat+'|'+s]||0, useQty:useBySpec[cat+'|'+s]||0});
+        var sk=cat+'|'+s;
+        matRows.push({type:'spec', cat:cat, spec:s, key:sk, unit:unit,
+          inQty:inBySpec[sk]||0, useQty:useBySpec[sk]||0, doQty:inDo[sk]||0, saQty:inSa[sk]||0});
       });
       if(blankIn || blankUse){
         matRows.push({type:'blank', cat:cat, spec:'', key:'', unit:unit,
-          inQty:blankIn, useQty:blankUse});
+          inQty:blankIn, useQty:blankUse, doQty:inDo[cat+'|']||0, saQty:inSa[cat+'|']||0});
       }
     });
 
     if(!matRows.length){
-      wrap.innerHTML='<tr><td colspan="9" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
+      wrap.innerHTML='<tr><td colspan="11" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
     } else {
       renderRows();
     }
@@ -353,7 +370,7 @@ async function loadMaterialData(){
     document.getElementById('sumUpdated').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
     console.error('자재 데이터 불러오기 실패', e);
-    wrap.innerHTML='<tr><td colspan="8" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
+    wrap.innerHTML='<tr><td colspan="11" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
   }
 }
 /* 작업일보 ⚙️설정에서 규격·작업분류·단위를 고치면 새로고침 없이 바로 따라간다 —
