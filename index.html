@@ -32,7 +32,7 @@ html.embed .wrap{padding:0;}   /* 바깥 카드가 이미 여백을 준다 — �
 .hdr h1{font-size:19px; font-weight:800;}
 .hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
 .toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px;}   /* status .toolbar와 동일 */
-.toolbar .hint{font-size:11px; color:var(--lbl); line-height:1.6;}   /* status .note와 동일 */
+.note{font-size:11px; color:var(--lbl); line-height:1.6; margin-top:8px;}   /* 기준 앱의 .note와 동일 */
 /* 버튼 서식은 인원투입계획/실투입 앱과 동일하게 맞춤(2026-08-11 통일) */
 .btn{border:none; border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:inherit;}
 .btn-refresh{background:var(--field-bg); color:var(--brand-2); border:1px solid var(--field-bd);}
@@ -106,8 +106,8 @@ html.embed .wrap{padding:0;}   /* 바깥 카드가 이미 여백을 준다 — �
 
   <div id="migBanner"></div>
 
-  <div class="toolbar">
-    <div class="hint">ⓘ <b>구분</b>(도급/사급)은 품목 줄에서 고르면 바로 저장됩니다 — 규격 줄은 품목의 구분을 그대로 따릅니다(″) · <b>규격</b>은 작업일보 ⚙️설정 "규격 관리"와 자동 연동 · <b>계약/산출/발주</b>는 규격 줄에 입력, 품목 줄은 그 합계 · <b>입고</b>는 작업일보 "자재" 공종, <b>출고</b>는 "시공" 공종 수량 합계로 자동 계산 · <b>잔여수량 = 입고 − 출고</b></div>
+  <!-- 상단은 버튼만 둔다. 설명은 다른 탭들처럼 표 아래 .note로 내렸다(2026-08-11). -->
+  <div class="toolbar" style="justify-content:flex-end;">
     <div style="display:flex; gap:8px; flex-shrink:0;">
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
       <button type="button" class="btn btn-refresh" onclick="loadMaterialData()">🔄 새로고침</button>
@@ -124,6 +124,7 @@ html.embed .wrap{padding:0;}   /* 바깥 카드가 이미 여백을 준다 — �
     <tbody id="matRows"><tr><td colspan="10" class="empty">불러오는 중...</td></tr></tbody>
   </table>
   <div class="save-note" id="saveNote" style="margin-top:8px;"></div>
+  <div class="note">ⓘ <b>구분</b>(도급/사급)은 품목 줄에서 고르면 바로 저장됩니다 — 규격 줄은 품목의 구분을 그대로 따릅니다(″) · <b>규격</b>은 작업일보 ⚙️설정 "규격 관리"와 자동 연동 · <b>계약/산출/발주</b>는 규격 줄에 입력, 품목 줄은 그 합계 · <b>입고</b>는 작업일보 "자재" 공종, <b>출고</b>는 "시공" 공종 수량 합계로 자동 계산 · <b>잔여수량 = 입고 − 출고</b></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
