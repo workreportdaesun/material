@@ -195,17 +195,17 @@ async function loadMaterialData(){
        ④ material_qty에만 값이 있는 품목(설정에서 나중에 지워진 분류) — 입력해둔 값을 숨기지 않는다. */
     var seen={}; matCats=[];
     function addCat(c){ if(c && !seen[c]){ seen[c]=1; matCats.push(c); } }
+    /* 행 순서는 작업일보 ⚙️작업분류 설정 순서 그대로다(2026-08-11 사용자 지시) — 일보에서 분류를
+       위아래로 옮기면 이 표도 같이 따라간다. 예전엔 잔여수량 오름차순으로 정렬해서 부족한 품목이
+       위로 왔는데, 일보·공정관리와 줄 순서가 달라 눈으로 대조하기 어려웠다.
+       설정에 없는 분류(일보 실적에만 있거나 입력값만 남은 것)는 뒤에 이름순으로 붙인다. */
     ((sd.cats_by_menu||{})['시공']||[]).forEach(addCat);
-    Object.keys(incoming).forEach(addCat);
-    Object.keys(used).forEach(addCat);
-    Object.keys(materialQty).forEach(addCat);
-    // 잔여수량이 적은(=부족한) 품목이 위로. 같으면 이름순.
-    matCats.sort(function(a,b){
-      var remA = (incoming[a]||0) - (used[a]||0);
-      var remB = (incoming[b]||0) - (used[b]||0);
-      if(remA!==remB) return remA - remB;
-      return a.localeCompare(b, 'ko');
-    });
+    var extra=[];
+    function addExtra(c){ if(c && !seen[c] && extra.indexOf(c)===-1) extra.push(c); }
+    Object.keys(incoming).forEach(addExtra);
+    Object.keys(used).forEach(addExtra);
+    Object.keys(materialQty).forEach(addExtra);
+    extra.sort(function(a,b){ return a.localeCompare(b,'ko'); }).forEach(addCat);
 
     if(!matCats.length){
       wrap.innerHTML='<tr><td colspan="8" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
