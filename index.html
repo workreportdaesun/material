@@ -36,12 +36,6 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .dtable th:nth-child(1){width:14%;} .dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
 /* 자재구분 탭 */
-.tabs{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;}
-.tab-btn{border:1px solid var(--card-bd); background:var(--card); color:var(--lbl); border-radius:8px;
-  padding:7px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;}
-.tab-btn:hover{border-color:var(--brand-2); color:var(--brand-2);}
-.tab-btn.on{background:var(--brand-2); border-color:var(--brand-2); color:#fff;}
-.tab-btn .cnt{font-size:11px; opacity:.75; margin-left:5px;}
 .kind-sel{width:100%; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
   padding:3px 4px; font-family:var(--font-body); font-size:11.5px; color:var(--ink); cursor:pointer;}
 .kind-sel:focus{outline:none; border-color:var(--brand-2); background:#fff;}
@@ -53,10 +47,6 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .remain-neg{color:var(--err); font-weight:800;}
 .remain-low{color:var(--warn); font-weight:800;}
 .empty{text-align:center; color:var(--lbl); padding:30px; font-size:13px;}
-.summary{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:16px;}
-.sum-card{background:var(--card); border:1px solid var(--card-bd); border-radius:10px; padding:14px; text-align:center;}
-.sum-card .num{font-size:22px; font-weight:800; color:var(--brand-1); font-family:var(--font-mono);}
-.sum-card .lbl{font-size:11px; color:var(--lbl); margin-top:4px;}
 /* 직접 입력하는 3개 열(계약/산출/발주) — 자동 집계 열과 구분되게 입력칸 모양을 준다. */
 .qty-inp{width:100%; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:3px 5px;
   font-family:var(--font-mono); font-size:11.5px; color:var(--ink); text-align:right;}
@@ -87,12 +77,6 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
     <div style="font-size:12px;opacity:.85;" id="hdrDate"></div>
   </div>
 
-  <div class="summary">
-    <div class="sum-card"><div class="num" id="sumItems">-</div><div class="lbl">품목 수</div></div>
-    <div class="sum-card"><div class="num" id="sumShort">-</div><div class="lbl">잔여수량 부족(음수) 품목</div></div>
-    <div class="sum-card"><div class="num" id="sumUpdated">-</div><div class="lbl">마지막 갱신</div></div>
-  </div>
-
   <div id="migBanner"></div>
 
   <div class="toolbar">
@@ -102,10 +86,6 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
       <button type="button" class="btn btn-refresh" onclick="loadMaterialData()">🔄 새로고침</button>
     </div>
   </div>
-
-  <!-- 자재구분 탭 — 품목마다 지정한 구분(material_qty[분류].kind)으로 거른다. 입고(도급/사급)
-       열은 일보 실적이라 성격이 다르므로 탭과 별개로 그대로 둔다. -->
-  <div class="tabs" id="kindTabs"></div>
 
   <table class="dtable">
     <tr>
@@ -150,37 +130,14 @@ var materialQty={}, matCats=[], matQtyColumnOk=true, specsByCat={};
 var matRows=[], collapsed={};
 /* 자재구분(도급/사급)은 품목(분류) 단위로 하나만 정한다(2026-08-11 사용자 확정) — 규격 줄은
    분류의 구분을 그대로 따르므로 ″로만 표시한다. 저장은 material_qty[분류].kind 라서 컬럼을
-   더 만들 필요가 없고, 앞으로 만들 자재발주 앱도 같은 자리를 읽으면 된다. */
-var KIND_TABS=[{v:'all',label:'전체'},{v:'도급',label:'도급'},{v:'사급',label:'사급'},{v:'none',label:'미지정'}];
-var activeKind='all';
+   더 만들 필요가 없고, 앞으로 만들 자재발주 앱도 같은 자리를 읽으면 된다.
+   ※ 이 구분으로 표를 거르던 전체/도급/사급/미지정 탭은 2026-08-11 사용자 요청으로 제거함 —
+     구분 지정과 저장은 그대로 두고, 표는 항상 전체 품목을 보여준다. */
 function kindOf(cat){
   var r=materialQty[cat];
   var k=r?r.kind:'';
   return (k==='도급'||k==='사급')?k:'';
 }
-function kindMatches(cat){
-  if(activeKind==='all') return true;
-  if(activeKind==='none') return !kindOf(cat);
-  return kindOf(cat)===activeKind;
-}
-function renderTabs(){
-  var cnt={all:0,'도급':0,'사급':0,none:0};
-  matCats.forEach(function(c){
-    cnt.all++;
-    var k=kindOf(c);
-    if(k) cnt[k]++; else cnt.none++;
-  });
-  document.getElementById('kindTabs').innerHTML = KIND_TABS.map(function(t){
-    return '<button type="button" class="tab-btn'+(activeKind===t.v?' on':'')+'" onclick="setKindTab(\''+t.v+'\')">'
-      +t.label+'<span class="cnt">'+cnt[t.v]+'</span></button>';
-  }).join('');
-}
-function setKindTab(v){
-  activeKind=v;
-  renderTabs();
-  renderRows();
-}
-/* 구분을 바꾸면 그 행이 지금 보고 있는 탭에서 빠질 수 있다 — 저장 뒤 표를 다시 그린다. */
 async function saveMatKind(idx, value){
   var row=matRows[idx];
   if(!sbClient || !row || !row.cat) return;
@@ -199,7 +156,7 @@ async function saveMatKind(idx, value){
     materialQty=merged;
     if(sel) sel.classList.add('saved');
     setSaveNote('✓ '+cat+' 구분 '+(value||'해제')+' 저장됨', 'var(--ok)');
-    renderTabs(); renderRows();
+    renderRows();   // 구분과 입고 실적이 어긋나는 칸 표시를 다시 계산
   }catch(e){
     console.error('자재구분 저장 실패', e);
     setSaveNote('❌ 저장 실패: '+(e.message||e), 'var(--err)');
@@ -248,7 +205,6 @@ function renderRows(){
   var wrap=document.getElementById('matRows');
   var shown=0;
   var html = matRows.map(function(r,i){
-    if(!kindMatches(r.cat)) return '';                            // 지금 탭의 구분이 아닌 품목
     if(r.type!=='cat' && r.cat && collapsed[r.cat]) return '';   // 접힌 분류의 하위 줄은 안 그린다
     shown++;
     var rem=r.inQty-r.useQty;
@@ -299,10 +255,7 @@ function renderRows(){
       +'<td class="right '+remClass+'">'+num(rem)+'</td></tr>';
   }).join('');
   wrap.innerHTML = shown ? html
-    : '<tr><td colspan="12" class="empty">'
-      +(activeKind==='none'?'구분을 안 정한 품목이 없습니다 — 분류가 모두 끝났습니다'
-        :'이 구분으로 지정된 품목이 없습니다. "전체" 탭에서 구분 열을 정해주세요.')
-      +'</td></tr>';
+    : '<tr><td colspan="12" class="empty">표시할 품목이 없습니다</td></tr>';
 }
 function toggleCat(i){
   var cat=matRows[i]&&matRows[i].cat;
@@ -458,17 +411,11 @@ async function loadMaterialData(){
       }
     });
 
-    renderTabs();
     if(!matRows.length){
       wrap.innerHTML='<tr><td colspan="12" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
     } else {
       renderRows();
     }
-    var shortCount=0;
-    matCats.forEach(function(c){ if(((incoming[c]||0)-(used[c]||0))<0) shortCount++; });
-    document.getElementById('sumShort').textContent = shortCount;
-    document.getElementById('sumItems').textContent = matCats.length;
-    document.getElementById('sumUpdated').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
     console.error('자재 데이터 불러오기 실패', e);
     wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
@@ -490,7 +437,7 @@ function subscribeSettingsRealtime(){
       if(!payload.new) return;
       if(payload.new.material_qty) materialQty = payload.new.material_qty;
       var k=structKeyOf(payload.new);
-      if(k===lastStructKey){ renderCatTotals(); renderTabs(); return; }
+      if(k===lastStructKey){ renderCatTotals(); return; }
       lastStructKey=k;
       setSaveNote('작업일보 설정이 바뀌어 표를 다시 불러왔습니다');
       loadMaterialData();
