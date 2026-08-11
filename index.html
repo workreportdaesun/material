@@ -17,7 +17,8 @@
   --font-mono:"SFMono-Regular",Consolas,Menlo,monospace;
 }
 body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-height:100vh;}
-.wrap{max-width:1100px; margin:0 auto; padding:24px 20px 60px;}
+/* PC 전용 화면 — 가로 폭 제한 없이 모니터 전체를 쓴다(기존 1100px 상한 제거, 2026-08-11) */
+.wrap{width:100%; padding:24px 20px 60px;}
 .hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:12px; padding:16px 20px; margin-bottom:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;}
 .hdr h1{font-size:19px; font-weight:800;}
 .hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
@@ -28,16 +29,20 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 /* 열이 11개(규격·도급/사급 추가)라 글자·여백을 한 단계씩 줄여 1100px 안에 들어오게 했다.
    품목 이름은 특히 크게 보여 12px→11.5px로 더 줄이고 줄바꿈 없이 한 줄로 유지한다. */
 .dtable{width:100%; border-collapse:collapse; font-size:12px; background:var(--card); border:1px solid var(--card-bd); border-radius:10px; overflow:hidden; table-layout:fixed;}
-.dtable th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.2px; color:var(--lbl); background:var(--field-bg); padding:6px 7px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
-.dtable td{padding:5px 7px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); font-family:var(--font-mono); box-sizing:border-box; height:32px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.dtable th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.2px; color:var(--lbl); background:var(--field-bg); padding:0 8px; height:34px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
+/* 모든 행 높이를 36px로 똑같이 맞춘다(2026-08-11). 예전엔 td에 세로 padding이 있고 입력칸이
+   있는 줄만 그 높이만큼 더 커져서, 입력칸 없는 분류 합계행보다 규격행이 더 높았다.
+   세로 padding을 없애고 높이를 고정한 뒤, 입력칸(qty-inp/kind-sel)도 높이를 고정한다. */
+.dtable tr{height:36px;}
+.dtable td{padding:0 8px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); font-family:var(--font-mono); box-sizing:border-box; height:36px; vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .dtable th:last-child, .dtable td:last-child{border-right:none;}
 .dtable td.name{font-family:var(--font-body); font-weight:700; font-size:11.5px;}
 /* 열 폭 — 품목/규격/구분만 따로, 숫자 열은 균등 */
 .dtable th:nth-child(1){width:14%;} .dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
 /* 자재구분 탭 */
-.kind-sel{width:100%; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
-  padding:3px 4px; font-family:var(--font-body); font-size:11.5px; color:var(--ink); cursor:pointer;}
+.kind-sel{width:100%; height:26px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
+  padding:0 4px; font-family:var(--font-body); font-size:11.5px; color:var(--ink); cursor:pointer;}
 .kind-sel:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .kind-sel.saved{border-color:var(--ok);}
 .kind-ditto{color:var(--muted); text-align:center; display:block;}
@@ -48,13 +53,13 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .remain-low{color:var(--warn); font-weight:800;}
 .empty{text-align:center; color:var(--lbl); padding:30px; font-size:13px;}
 /* 직접 입력하는 3개 열(계약/산출/발주) — 자동 집계 열과 구분되게 입력칸 모양을 준다. */
-.qty-inp{width:100%; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:3px 5px;
+.qty-inp{width:100%; height:26px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:0 5px;
   font-family:var(--font-mono); font-size:11.5px; color:var(--ink); text-align:right;}
 .qty-inp:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .qty-inp.saving{border-color:var(--warn);}
 .qty-inp.saved{border-color:var(--ok);}
 .dtable th.manual{color:var(--brand-2);}
-.dtable td.manual{padding:4px 8px;}
+.dtable td.manual{padding:0 6px;}   /* 입력칸 자체가 높이를 갖고 있으므로 세로 여백은 주지 않는다 */
 .migbox{background:#FEF5E7; border:1px solid #F0C987; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:12.5px; line-height:1.7; color:#7E5109;}
 .migbox pre{background:#fff; border:1px solid #F0C987; border-radius:6px; padding:8px 10px; margin-top:6px; font-family:var(--font-mono); font-size:11.5px; white-space:pre-wrap; color:#5A3D08;}
 .save-note{font-size:12px; color:var(--lbl); min-height:16px;}
