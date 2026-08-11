@@ -37,6 +37,9 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .dtable td{padding:0 8px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); font-family:var(--font-mono); box-sizing:border-box; height:36px; vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .dtable th:last-child, .dtable td:last-child{border-right:none;}
 .dtable td.name{font-family:var(--font-body); font-weight:700; font-size:14px;}
+/* 규격 열(2번째 칸) — 모든 행이 품목칸 다음에 규격칸을 그리므로 nth-child(2)로 잡힌다.
+   품목 이름과 같은 14px로 키움((합계)·(규격 미지정) 표시도 같은 칸이라 함께 적용). */
+.dtable td:nth-child(2){font-size:14px;}
 /* 열 폭 — 품목/규격/구분만 따로, 숫자 열은 균등 */
 .dtable th:nth-child(1){width:14%;} .dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
