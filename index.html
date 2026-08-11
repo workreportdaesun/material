@@ -38,6 +38,17 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .sum-card{background:var(--card); border:1px solid var(--card-bd); border-radius:10px; padding:14px; text-align:center;}
 .sum-card .num{font-size:22px; font-weight:800; color:var(--brand-1); font-family:var(--font-mono);}
 .sum-card .lbl{font-size:11px; color:var(--lbl); margin-top:4px;}
+/* 직접 입력하는 3개 열(계약/산출/발수주) — 자동 집계 열과 구분되게 입력칸 모양을 준다. */
+.qty-inp{width:100%; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:4px 6px;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink); text-align:right;}
+.qty-inp:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+.qty-inp.saving{border-color:var(--warn);}
+.qty-inp.saved{border-color:var(--ok);}
+.dtable th.manual{color:var(--brand-2);}
+.dtable td.manual{padding:4px 8px;}
+.migbox{background:#FEF5E7; border:1px solid #F0C987; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:12.5px; line-height:1.7; color:#7E5109;}
+.migbox pre{background:#fff; border:1px solid #F0C987; border-radius:6px; padding:8px 10px; margin-top:6px; font-family:var(--font-mono); font-size:11.5px; white-space:pre-wrap; color:#5A3D08;}
+.save-note{font-size:12px; color:var(--lbl); min-height:16px;}
 </style>
 </head>
 <body>
@@ -53,19 +64,26 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 
   <div class="summary">
     <div class="sum-card"><div class="num" id="sumItems">-</div><div class="lbl">품목 수</div></div>
-    <div class="sum-card"><div class="num" id="sumShort">-</div><div class="lbl">잔량 부족(음수) 품목</div></div>
+    <div class="sum-card"><div class="num" id="sumShort">-</div><div class="lbl">잔여수량 부족(음수) 품목</div></div>
     <div class="sum-card"><div class="num" id="sumUpdated">-</div><div class="lbl">마지막 갱신</div></div>
   </div>
 
+  <div id="migBanner"></div>
+
   <div class="toolbar">
-    <div class="hint">ⓘ 입고량은 작업일보 "자재" 공종, 사용량은 같은 분류명의 "시공" 공종 수량을 합산한 값입니다(자동 계산, 조회 전용).</div>
+    <div class="hint">ⓘ <b>계약/산출/발수주</b> 수량은 칸에 직접 입력하면 바로 저장됩니다 · <b>입고수량</b>은 작업일보 "자재" 공종, <b>출고수량</b>은 같은 분류명의 "시공" 공종 수량 합계로 자동 계산됩니다 · <b>잔여수량 = 입고 − 출고</b>(창고 재고)</div>
     <button type="button" class="btn btn-refresh" onclick="loadMaterialData()">🔄 새로고침</button>
   </div>
 
   <table class="dtable">
-    <tr><th>품목(작업분류)</th><th>단위</th><th class="right">입고량</th><th class="right">사용량</th><th class="right">잔량</th></tr>
-    <tbody id="matRows"><tr><td colspan="5" class="empty">불러오는 중...</td></tr></tbody>
+    <tr>
+      <th>품목(작업분류)</th><th>단위</th>
+      <th class="right manual">계약수량</th><th class="right manual">산출수량</th><th class="right manual">발수주량</th>
+      <th class="right">입고수량</th><th class="right">출고수량</th><th class="right">잔여수량</th>
+    </tr>
+    <tbody id="matRows"><tr><td colspan="8" class="empty">불러오는 중...</td></tr></tbody>
   </table>
+  <div class="save-note" id="saveNote" style="margin-top:8px;"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -76,22 +94,88 @@ var SUPABASE_URL='https://feymoykefzfwucbrqoja.supabase.co';
 var SUPABASE_KEY='sb_publishable_ANT6G7_ka3IPHRk_4vLtBg_7G9NWW7i';
 var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
 
-/* 재고 계산: daily_reports(전체 팀·전체 날짜).items를 스캔해서
-   - 입고량: menu==='자재'인 항목의 qty 합계 (분류명 기준)
-   - 사용량: menu==='시공'인 항목의 qty 합계 (같은 분류명 — 자재 품목명과 시공 작업분류명이
+/* 표는 자동 집계 3열 + 직접 입력 3열로 이뤄진다(2026-08-11).
+
+   자동 집계 — daily_reports(전체 팀·전체 날짜).items를 스캔해서
+   - 입고수량: menu==='자재'인 항목의 qty 합계 (분류명 기준)
+   - 출고수량: menu==='시공'인 항목의 qty 합계 (같은 분류명 — 자재 품목명과 시공 작업분류명이
      report 전체에서 공용이라는 기존 관례를 그대로 사용, ITEM_UNIT/specsByCat와 동일 패턴)
-   - 잔량 = 입고량 - 사용량
+   - 잔여수량 = 입고수량 - 출고수량 (창고 재고, 2026-08-11 사용자 확정)
    Connection처럼 FROM/TO 규격에 0.5 가중치를 매기는 건 공정률(%) 계산 전용 규칙이라 여기(실제
-   자재 수량)엔 적용하지 않는다 — FROM 1개+TO 1개를 설치했으면 부품은 실제로 2개 쓴 것과 같다. */
+   자재 수량)엔 적용하지 않는다 — FROM 1개+TO 1개를 설치했으면 부품은 실제로 2개 쓴 것과 같다.
+
+   직접 입력 — 계약수량/산출수량/발수주량은 일보에서 나올 수 있는 값이 아니라 사람이 넣는 값이라
+   app_settings.material_qty(jsonb)에 {분류명:{contract,takeoff,ordered}} 형태로 저장한다.
+   컬럼이 아직 없으면 위 배너에 SQL을 띄우고 입력칸은 잠근다. */
+var MAT_FIELDS=[{key:'contract',label:'계약수량'},{key:'takeoff',label:'산출수량'},{key:'ordered',label:'발수주량'}];
+var materialQty={}, matCats=[], matQtyColumnOk=true;
+
+function setSaveNote(msg, color){
+  var el=document.getElementById('saveNote');
+  el.textContent=msg||'';
+  el.style.color=color||'var(--lbl)';
+}
+function renderMigBanner(){
+  document.getElementById('migBanner').innerHTML = matQtyColumnOk ? '' :
+    '<div class="migbox">⚠️ <b>app_settings.material_qty</b> 컬럼이 없어 계약/산출/발수주 수량이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.'
+    +'<pre>ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS material_qty jsonb DEFAULT \'{}\'::jsonb;</pre></div>';
+}
+function matVal(cat, field){
+  var r=materialQty[cat];
+  var v=r?r[field]:null;
+  return (v===null||v===undefined||v==='')?'':v;
+}
+
+/* 저장 직전에 서버 값을 다시 읽어 내가 고친 칸만 얹는다 — 두 사람이 같은 시간에 다른 품목을
+   고쳐도 통째로 덮어쓰지 않도록(작업일보 crew에서 겪었던 통째 덮어쓰기 사고와 같은 유형). */
+async function saveMatQty(idx, field, raw){
+  var cat=matCats[idx];
+  if(!sbClient || !cat) return;
+  var inp=document.getElementById('mq-'+idx+'-'+field);
+  var txt=String(raw).trim();
+  var val = txt==='' ? null : (Number(txt)||0);
+  if(inp){ inp.classList.remove('saved'); inp.classList.add('saving'); }
+  setSaveNote('저장 중...');
+  try{
+    var cur=await sbClient.from('app_settings').select('material_qty').eq('id','global').single();
+    if(cur.error) throw new Error(cur.error.message);
+    var merged=(cur.data && cur.data.material_qty) || {};
+    var row=Object.assign({}, merged[cat]);
+    if(val===null) delete row[field]; else row[field]=val;
+    merged[cat]=row;
+    var res=await sbClient.from('app_settings').update({material_qty:merged}).eq('id','global');
+    if(res.error) throw new Error(res.error.message);
+    materialQty=merged;
+    if(inp){ inp.classList.remove('saving'); inp.classList.add('saved'); }
+    setSaveNote('✓ '+cat+' '+(MAT_FIELDS.find(function(f){return f.key===field;})||{}).label+' 저장됨', 'var(--ok)');
+  }catch(e){
+    console.error('자재 수량 저장 실패', e);
+    if(inp) inp.classList.remove('saving');
+    setSaveNote('❌ 저장 실패: '+(e.message||e), 'var(--err)');
+  }
+}
+
 async function loadMaterialData(){
   var wrap = document.getElementById('matRows');
-  if(!sbClient){ wrap.innerHTML='<tr><td colspan="5" class="empty">Supabase 연결 실패</td></tr>'; return; }
-  wrap.innerHTML='<tr><td colspan="5" class="empty">불러오는 중...</td></tr>';
+  if(!sbClient){ wrap.innerHTML='<tr><td colspan="8" class="empty">Supabase 연결 실패</td></tr>'; return; }
+  wrap.innerHTML='<tr><td colspan="8" class="empty">불러오는 중...</td></tr>';
+  setSaveNote('');
   try{
     var reportsRes = await sbClient.from('daily_reports').select('items');
-    var settingsRes = await sbClient.from('app_settings').select('item_unit').eq('id','global').single();
-    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="5" class="empty">불러오기 실패</td></tr>'; return; }
-    var itemUnit = (settingsRes.data && settingsRes.data.item_unit) || {};
+    /* material_qty 컬럼이 아직 없으면 이 select 전체가 실패하므로(42703), 실패하면 그 열만 빼고
+       다시 읽어서 나머지(단위·분류 목록)는 정상적으로 보여준다. */
+    var settingsRes = await sbClient.from('app_settings').select('item_unit,cats_by_menu,material_qty').eq('id','global').single();
+    if(settingsRes.error){
+      matQtyColumnOk=false;
+      settingsRes = await sbClient.from('app_settings').select('item_unit,cats_by_menu').eq('id','global').single();
+    } else {
+      matQtyColumnOk=true;
+    }
+    renderMigBanner();
+    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="8" class="empty">불러오기 실패</td></tr>'; return; }
+    var sd = settingsRes.data || {};
+    var itemUnit = sd.item_unit || {};
+    materialQty = sd.material_qty || {};
 
     var incoming={}, used={};
     reportsRes.data.forEach(function(row){
@@ -103,37 +187,52 @@ async function loadMaterialData(){
       });
     });
 
-    /* 입고(자재)와 사용(시공) 양쪽의 품목을 모두 모은다 — 예전엔 Object.keys(incoming)만 써서,
-       입고 기록 없이 사용만 된 품목이 표에서 통째로 빠졌다. 정작 잔량이 마이너스인(= 가장 먼저
-       확인해야 하는) 품목이 안 보이는 셈이라, 잔량 오름차순 정렬의 취지와도 어긋났다. */
-    var cats = Object.keys(incoming);
-    Object.keys(used).forEach(function(c){ if(cats.indexOf(c)===-1) cats.push(c); });
-    cats.sort(function(a,b){
+    /* 품목 목록은 네 곳을 합친다:
+       ① 작업일보 ⚙️작업분류 설정(cats_by_menu['시공']) — 아직 일보 실적이 없어도 계약수량을 미리
+          넣을 수 있어야 하므로 설정에 있는 분류는 전부 행을 만든다(2026-08-11 직접 입력 도입).
+       ② 입고(자재) ③ 사용(시공) — 예전엔 Object.keys(incoming)만 써서, 입고 기록 없이 사용만 된
+          품목이 표에서 통째로 빠졌다(잔여수량이 마이너스인, 가장 먼저 봐야 할 품목이 안 보였음).
+       ④ material_qty에만 값이 있는 품목(설정에서 나중에 지워진 분류) — 입력해둔 값을 숨기지 않는다. */
+    var seen={}; matCats=[];
+    function addCat(c){ if(c && !seen[c]){ seen[c]=1; matCats.push(c); } }
+    ((sd.cats_by_menu||{})['시공']||[]).forEach(addCat);
+    Object.keys(incoming).forEach(addCat);
+    Object.keys(used).forEach(addCat);
+    Object.keys(materialQty).forEach(addCat);
+    // 잔여수량이 적은(=부족한) 품목이 위로. 같으면 이름순.
+    matCats.sort(function(a,b){
       var remA = (incoming[a]||0) - (used[a]||0);
       var remB = (incoming[b]||0) - (used[b]||0);
-      return remA - remB;
+      if(remA!==remB) return remA - remB;
+      return a.localeCompare(b, 'ko');
     });
 
-    if(!cats.length){
-      wrap.innerHTML='<tr><td colspan="5" class="empty">아직 자재 입고나 시공 사용 기록이 있는 품목이 없습니다</td></tr>';
+    if(!matCats.length){
+      wrap.innerHTML='<tr><td colspan="8" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
     } else {
       var shortCount = 0;
-      wrap.innerHTML = cats.map(function(cat){
+      wrap.innerHTML = matCats.map(function(cat, i){
         var inQty = incoming[cat]||0, useQty = used[cat]||0, rem = inQty - useQty;
         var unit = itemUnit[cat] || 'EA';
         var remClass = rem<0 ? 'remain-neg' : (inQty>0 && rem/inQty<0.1 ? 'remain-low' : '');
         if(rem<0) shortCount++;
+        var manualCells = MAT_FIELDS.map(function(f){
+          return '<td class="right manual"><input type="number" class="qty-inp" id="mq-'+i+'-'+f.key+'"'
+            +' value="'+matVal(cat, f.key)+'" placeholder="-"'+(matQtyColumnOk?'':' disabled')
+            +' onchange="saveMatQty('+i+',\''+f.key+'\',this.value)"></td>';
+        }).join('');
         return '<tr><td class="name">'+cat+'</td><td>'+unit+'</td>'
+          + manualCells
           +'<td class="right">'+inQty+'</td><td class="right">'+useQty+'</td>'
           +'<td class="right '+remClass+'">'+rem+'</td></tr>';
       }).join('');
       document.getElementById('sumShort').textContent = shortCount;
     }
-    document.getElementById('sumItems').textContent = cats.length;
+    document.getElementById('sumItems').textContent = matCats.length;
     document.getElementById('sumUpdated').textContent = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
   }catch(e){
     console.error('자재 데이터 불러오기 실패', e);
-    wrap.innerHTML='<tr><td colspan="5" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
+    wrap.innerHTML='<tr><td colspan="8" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
   }
 }
 loadMaterialData();
