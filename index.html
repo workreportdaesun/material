@@ -14,7 +14,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#DFE4EA; --card:#fff; --card-bd:#D1DCE8; --ink:#1A2332; --lbl:#5A7A9A;
+  --bg:#F0F4F8; --card:#fff; --card-bd:#D1DCE8; --ink:#1A2332; --lbl:#5A7A9A; --field-bd:#C8D8E8; --head-bg:#DCE6F2;   /* 인원투입계획/실투입 앱과 같은 값으로 통일(2026-08-11) */
   --field-bg:#F7FAFC; --brand-1:#1E3A5F; --brand-2:#2E5F9E;
   --ok:#27AE60; --err:#E74C3C; --warn:#F39C12;
   --font-body:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
@@ -32,17 +32,18 @@ html.embed .wrap{padding:12px 14px 16px;}
 .hdr h1{font-size:19px; font-weight:800;}
 .hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
 .toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:10px;}
-.toolbar .hint{font-size:12px; color:var(--lbl);}
-.btn{border:none; border-radius:8px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;}
-.btn-refresh{background:var(--card); border:1px solid var(--card-bd); color:var(--brand-2);}
+.toolbar .hint{font-size:11px; color:var(--lbl); line-height:1.6;}   /* status .note와 동일 */
+/* 버튼 서식은 인원투입계획/실투입 앱과 동일하게 맞춤(2026-08-11 통일) */
+.btn{border:none; border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:inherit;}
+.btn-refresh{background:var(--field-bg); color:var(--brand-2); border:1px solid var(--field-bd);}
 /* 표 글자는 글꼴·크기를 하나로 통일한다(2026-08-11). 예전엔 품목만 본문 글꼴이고 규격·단위·숫자는
    고정폭(mono) 글꼴이라 같은 14px인데도 글자 모양과 크기감이 서로 달라 보였다.
    전부 본문 글꼴 14px로 맞추고, 숫자 자릿수는 tabular-nums로 세로 정렬을 유지한다. */
 .dtable{width:100%; border-collapse:collapse; font-family:var(--font-body); font-size:14px;
   font-variant-numeric:tabular-nums; background:var(--card); border:1px solid var(--card-bd);
-  border-radius:10px; overflow:hidden; table-layout:fixed;}
+  border-radius:8px; overflow:hidden; table-layout:fixed;}
 /* 머리글도 본문과 같은 14px — 12px로 두니 아래 항목 내용과 크기가 달라 보였다(2026-08-11). */
-.dtable th{text-align:center; letter-spacing:0; color:var(--lbl); background:var(--field-bg); padding:0 8px; height:36px; font-size:14px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
+.dtable th{text-align:center; letter-spacing:0; color:var(--ink); background:var(--head-bg); padding:0 8px; height:36px; font-size:14px; font-weight:700; border-right:1px solid var(--card-bd); white-space:nowrap;}
 /* 모든 행 높이를 36px로 똑같이 맞춘다(2026-08-11). 예전엔 td에 세로 padding이 있고 입력칸이
    있는 줄만 그 높이만큼 더 커져서, 입력칸 없는 분류 합계행보다 규격행이 더 높았다.
    세로 padding을 없애고 높이를 고정한 뒤, 입력칸(qty-inp/kind-sel)도 높이를 고정한다. */
