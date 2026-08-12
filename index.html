@@ -43,6 +43,13 @@ html.embed #migBanner:empty{display:none;}
 /* 버튼 서식은 인원투입계획/실투입 앱과 동일하게 맞춤(2026-08-11 통일) */
 .btn{border:none; border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:inherit;}
 .btn-refresh{background:var(--field-bg); color:var(--brand-2); border:1px solid var(--field-bd);}
+/* 검색바(2026-08-12) — 인원투입계획/실투입의 근로자명단 검색바와 같은 모양으로 맞춤 */
+.f-search, .f-kind{background:var(--field-bg); border:1px solid var(--field-bd); border-radius:6px;
+  color:var(--ink); font-size:13px; padding:5px 8px; font-family:inherit; height:28px;}
+.f-search{width:260px;}
+.f-search:focus, .f-kind:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+.f-lbl{font-size:12px; font-weight:700; color:var(--lbl);}
+.filter-count{font-size:12px; color:var(--lbl); margin-left:auto;}
 /* 표 글자는 글꼴·크기를 하나로 통일한다(2026-08-11). 예전엔 품목만 본문 글꼴이고 규격·단위·숫자는
    고정폭(mono) 글꼴이라 같은 14px인데도 글자 모양과 크기감이 서로 달라 보였다.
    전부 본문 글꼴 14px로 맞추고, 숫자 자릿수는 tabular-nums로 세로 정렬을 유지한다. */
@@ -115,8 +122,18 @@ html.embed #migBanner:empty{display:none;}
 
   <div id="migBanner"></div>
 
-  <!-- 상단은 버튼만 둔다. 설명은 다른 탭들처럼 표 아래 .note로 내렸다(2026-08-11). -->
-  <div class="toolbar" style="justify-content:flex-end;">
+  <!-- 상단은 검색바와 버튼만 둔다. 설명은 다른 탭들처럼 표 아래 .note로 내렸다(2026-08-11). -->
+  <div class="toolbar" style="justify-content:flex-start;">
+    <input type="search" id="matSearch" class="f-search" placeholder="품목·규격 검색" oninput="onMatFilter()">
+    <span class="f-lbl">구분</span>
+    <select id="matKindFilter" class="f-kind" onchange="onMatFilter()">
+      <option value="">전체</option>
+      <option value="도급">도급</option>
+      <option value="사급">사급</option>
+      <option value="미지정">미지정</option>
+    </select>
+    <button type="button" class="btn btn-refresh" onclick="clearMatFilter()">지우기</button>
+    <span class="filter-count" id="matFilterCount"></span>
     <div style="display:flex; gap:8px; flex-shrink:0;">
       <!-- 🔄 새로고침 버튼은 삭제(2026-08-12 사용자 요청). loadMaterialData()는 화면을 열 때
            자동으로 돌고, 작업일보 설정이 바뀌면 구독으로 다시 불러오므로 수동 버튼이 필요 없다. -->
@@ -170,8 +187,9 @@ var matRows=[], collapsed={};
 /* 자재구분(도급/사급)은 품목(분류) 단위로 하나만 정한다(2026-08-11 사용자 확정) — 규격 줄은
    분류의 구분을 그대로 따르므로 ″로만 표시한다. 저장은 material_qty[분류].kind 라서 컬럼을
    더 만들 필요가 없고, 앞으로 만들 자재발주 앱도 같은 자리를 읽으면 된다.
-   ※ 이 구분으로 표를 거르던 전체/도급/사급/미지정 탭은 2026-08-11 사용자 요청으로 제거함 —
-     구분 지정과 저장은 그대로 두고, 표는 항상 전체 품목을 보여준다. */
+   ※ 이 구분으로 표를 거르던 "전체/도급/사급/미지정" 탭줄은 2026-08-11에 제거했다가,
+     2026-08-12에 상단 검색바의 [구분] 드롭다운으로 되살렸다(탭 한 줄을 차지하지 않는 형태).
+     구분 지정과 저장 방식(material_qty[분류].kind)은 그때나 지금이나 그대로다. */
 function kindOf(cat){
   var r=materialQty[cat];
   var k=r?r.kind:'';
@@ -240,11 +258,59 @@ function renderCatTotals(){
   });
 }
 
+/* ── 검색·구분 필터(2026-08-12) ───────────────────────────────────────
+   ⚠️ 걸러낸 배열을 새로 만들어 map을 돌리면 안 된다 — 행의 인덱스 i가 저장 핸들러
+      (saveMatQty/saveMatKind)와 칸 id(mq-i-…, ct-i-…)에 그대로 박혀 있어서, 인덱스가
+      밀리면 엉뚱한 품목에 저장된다. 그래서 matRows 전체를 그대로 돌면서 "이 줄을 보일지"만
+      판단한다.
+   품목명이 걸리면 그 품목의 모든 규격 줄을 보여주고, 규격만 걸리면 그 줄과 문맥용으로
+   품목 합계행을 함께 보여준다. 구분(도급/사급)은 품목 단위 값이라 품목 전체가 걸러진다. */
+function matPassKind(cat){
+  var f=document.getElementById('matKindFilter');
+  var want=f?f.value:'';
+  if(!want) return true;
+  var k=kindOf(cat);
+  return want==='미지정' ? !k : k===want;
+}
+function matVisibleSet(){
+  var el=document.getElementById('matSearch');
+  var q=(el?el.value:'').trim().toLowerCase();
+  var catHit={}, keyHit={}, catCtx={};
+  if(q){
+    matRows.forEach(function(r){
+      if(!matPassKind(r.cat)) return;
+      if(String(r.cat||'').toLowerCase().indexOf(q)!==-1) catHit[r.cat]=1;
+      else if(String(r.spec||'').toLowerCase().indexOf(q)!==-1){ keyHit[r.key]=1; catCtx[r.cat]=1; }
+    });
+  }
+  var vis={}, count=0;
+  matRows.forEach(function(r,i){
+    if(!matPassKind(r.cat)) return;
+    var ok = !q ? true
+      : (catHit[r.cat] || keyHit[r.key] || (r.type==='cat' && catCtx[r.cat]));
+    if(!ok) return;
+    // 검색 중에는 접어둔 품목도 펼쳐서 보여준다 — 안 그러면 걸린 규격이 숨어버린다.
+    if(!q && r.type!=='cat' && r.cat && collapsed[r.cat]) return;
+    vis[i]=1; count++;
+  });
+  return {vis:vis, count:count, filtering:!!q || !matPassKindAll()};
+}
+function matPassKindAll(){
+  var f=document.getElementById('matKindFilter');
+  return !f || !f.value;
+}
+function onMatFilter(){ renderRows(); }
+function clearMatFilter(){
+  var s=document.getElementById('matSearch'); if(s) s.value='';
+  var k=document.getElementById('matKindFilter'); if(k) k.value='';
+  renderRows();
+}
 function renderRows(){
   var wrap=document.getElementById('matRows');
   var shown=0;
+  var f=matVisibleSet();
   var html = matRows.map(function(r,i){
-    if(r.type!=='cat' && r.cat && collapsed[r.cat]) return '';   // 접힌 분류의 하위 줄은 안 그린다
+    if(!f.vis[i]) return '';
     shown++;
     var rem=r.inQty-r.useQty;
     var remClass = rem<0 ? 'remain-neg' : (r.inQty>0 && rem/r.inQty<0.1 ? 'remain-low' : '');
@@ -291,7 +357,12 @@ function renderRows(){
       +'<td class="right '+remClass+'">'+num(rem)+'</td></tr>';
   }).join('');
   wrap.innerHTML = shown ? html
-    : '<tr><td colspan="10" class="empty">표시할 품목이 없습니다</td></tr>';
+    : '<tr><td colspan="10" class="empty">'+(f.filtering?'검색 결과가 없습니다':'표시할 품목이 없습니다')+'</td></tr>';
+  // 전체 품목 수는 합계행(type==='cat')과 규격 없는 단독행(type==='single') 개수로 센다.
+  var totalCats = matRows.filter(function(r){ return r.type==='cat'||r.type==='single'; }).length;
+  var shownCats = matRows.filter(function(r,i){ return f.vis[i] && (r.type==='cat'||r.type==='single'); }).length;
+  var cnt=document.getElementById('matFilterCount');
+  if(cnt) cnt.textContent = f.filtering ? ('검색 '+shownCats+'품목 / 총 '+totalCats+'품목') : ('총 '+totalCats+'품목');
   fitMatTableHeight();
 }
 function toggleCat(i){
