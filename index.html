@@ -59,13 +59,15 @@ html.embed #migBanner:empty{display:none;}
 .dtable{width:100%; border-collapse:separate; border-spacing:0; font-family:var(--font-body); font-size:12px;
   font-variant-numeric:tabular-nums; background:var(--card); table-layout:fixed; white-space:nowrap;}
 /* 머리글도 본문과 같은 14px — 12px로 두니 아래 항목 내용과 크기가 달라 보였다(2026-08-11). */
-.dtable th{text-align:center; letter-spacing:0; color:var(--ink); background:var(--head-bg); padding:0 7px; height:36px; font-size:12px; font-weight:700; border-right:1px solid var(--card-bd); border-bottom:1px solid var(--card-bd); white-space:nowrap; position:sticky; top:0; z-index:5;}
-/* 모든 행 높이를 36px로 똑같이 맞춘다(2026-08-11). 예전엔 td에 세로 padding이 있고 입력칸이
+.dtable th{text-align:center; letter-spacing:0; color:var(--ink); background:var(--head-bg); padding:0 7px; height:25px; font-size:12px; font-weight:700; border-right:1px solid var(--card-bd); border-bottom:1px solid var(--card-bd); white-space:nowrap; position:sticky; top:0; z-index:5;}
+/* 모든 행 높이를 똑같이 고정한다(2026-08-11). 예전엔 td에 세로 padding이 있고 입력칸이
    있는 줄만 그 높이만큼 더 커져서, 입력칸 없는 분류 합계행보다 규격행이 더 높았다.
-   세로 padding을 없애고 높이를 고정한 뒤, 입력칸(qty-inp/kind-sel)도 높이를 고정한다. */
-.dtable tr{height:36px;}
-.dtable td{text-align:center; padding:0 7px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); box-sizing:border-box; height:36px; vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.dtable th:last-child, .dtable td:last-child{border-right:none;}
+   2026-08-12: 인원투입계획/실투입의 출력일지(table.dt)를 기준으로 9개 탭 서식을 통일하면서
+   36px -> 25px 로 낮춤. 입력칸(qty-inp/kind-sel)도 21px로 같이 줄인다. */
+.dtable tr{height:25px;}
+.dtable td{text-align:center; padding:0 7px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); color:var(--ink); box-sizing:border-box; height:25px; vertical-align:middle; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+/* 출력일지(table.dt)는 마지막 열에도 오른쪽 선을 그린다 — 기준에 맞춰 되살림(2026-08-12).
+   표가 래퍼보다 좁을 때 마지막 열 오른쪽만 선이 없어 비어 보이던 문제도 같이 사라진다. */
 /* 품목 열 — 접기 화살표(▾)를 셀 왼쪽에 띄워두고 이름만 셀 정중앙에 오게 한다.
    화살표를 글 흐름에 두면 그 폭(14px)만큼 이름이 오른쪽으로 밀려 가운데가 안 맞았다. */
 .dtable td.name{font-weight:400; position:relative;}   /* 품목 열 글씨 굵기는 다른 열과 동일하게(2026-08-11 요청) */
@@ -73,7 +75,7 @@ html.embed #migBanner:empty{display:none;}
 .dtable th:nth-child(1){width:14%;} .dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
 /* 자재구분(도급/사급) 선택칸 */
-.kind-sel{width:100%; height:26px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
+.kind-sel{width:100%; height:21px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
   padding:0 4px; font-family:inherit; font-size:12px; color:var(--ink); cursor:pointer; text-align:center;}
 .kind-sel:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .kind-sel.saved{border-color:var(--ok);}
@@ -86,7 +88,7 @@ html.embed #migBanner:empty{display:none;}
 .remain-low{color:var(--warn); font-weight:800;}
 .empty{text-align:center; color:var(--lbl); padding:30px; font-size:13px;}
 /* 직접 입력하는 3개 열(계약/산출/발주) — 자동 집계 열과 구분되게 입력칸 모양을 준다. */
-.qty-inp{width:100%; height:26px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:0 5px;
+.qty-inp{width:100%; height:21px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:0 5px;
   font-family:inherit; font-size:12px; font-variant-numeric:tabular-nums; color:var(--ink); text-align:center;}
 .qty-inp:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .qty-inp.saving{border-color:var(--warn);}
@@ -102,7 +104,8 @@ html.embed #migBanner:empty{display:none;}
 .dtable td.name.cat-row{font-weight:400;}   /* 분류(합계)행도 품목 이름만은 굵게 하지 않는다 — 숫자 합계 열은 그대로 굵게 */
 .dtable td.name.sub{border-right-color:transparent;}
 .dtable td.dim{color:var(--lbl);}
-.caret{position:absolute; left:6px; top:0; height:36px; line-height:36px; width:14px; text-align:center;
+/* 행 높이(25px)와 같은 값이어야 화살표가 세로 가운데에 온다 — 행 높이를 바꾸면 여기도 같이. */
+.caret{position:absolute; left:6px; top:0; height:25px; line-height:25px; width:14px; text-align:center;
   cursor:pointer; user-select:none; color:var(--brand-2);}
 </style>
 </head>
