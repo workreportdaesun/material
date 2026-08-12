@@ -118,8 +118,9 @@ html.embed #migBanner:empty{display:none;}
   <!-- 상단은 버튼만 둔다. 설명은 다른 탭들처럼 표 아래 .note로 내렸다(2026-08-11). -->
   <div class="toolbar" style="justify-content:flex-end;">
     <div style="display:flex; gap:8px; flex-shrink:0;">
+      <!-- 🔄 새로고침 버튼은 삭제(2026-08-12 사용자 요청). loadMaterialData()는 화면을 열 때
+           자동으로 돌고, 작업일보 설정이 바뀌면 구독으로 다시 불러오므로 수동 버튼이 필요 없다. -->
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
-      <button type="button" class="btn btn-refresh" onclick="loadMaterialData()">🔄 새로고침</button>
     </div>
   </div>
 
