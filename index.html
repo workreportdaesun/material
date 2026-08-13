@@ -35,16 +35,16 @@ html.embed body{overflow:hidden;}
 html.embed .wrap{height:100%; display:flex; flex-direction:column; min-height:0;}
 html.embed .tablewrap{flex:1 1 auto; min-height:0;}
 html.embed #migBanner:empty{display:none;}
-.hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:12px; padding:16px 20px; margin-bottom:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;}
+.hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:0; padding:16px 20px; margin-bottom:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;}
 .hdr h1{font-size:19px; font-weight:800;}
 .hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
 .toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px;}   /* status .toolbar와 동일 */
 .note{font-size:11px; color:var(--lbl); line-height:1.6; margin-top:8px;}   /* 기준 앱의 .note와 동일 */
 /* 버튼 서식은 인원투입계획/실투입 앱과 동일하게 맞춤(2026-08-11 통일) */
-.btn{border:none; border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:inherit;}
+.btn{border:none; border-radius:0; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:inherit;}
 .btn-refresh{background:var(--field-bg); color:var(--brand-2); border:1px solid var(--field-bd);}
 /* 검색바(2026-08-12) — 인원투입계획/실투입의 근로자명단 검색바와 같은 모양으로 맞춤 */
-.f-search, .f-kind{background:var(--field-bg); border:1px solid var(--field-bd); border-radius:6px;
+.f-search, .f-kind{background:var(--field-bg); border:1px solid var(--field-bd); border-radius:0;
   color:var(--ink); font-size:13px; padding:5px 8px; font-family:inherit; height:28px;}
 .f-search{width:260px;}
 .f-search:focus, .f-kind:focus{outline:none; border-color:var(--brand-2); background:#fff;}
@@ -82,7 +82,7 @@ html.embed #migBanner:empty{display:none;}
 .dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
 /* 자재구분(도급/사급) 선택칸 */
-.kind-sel{width:100%; height:21px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
+.kind-sel{width:100%; height:21px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:0;
   padding:0 4px; font-family:inherit; font-size:12px; color:var(--ink); cursor:pointer; text-align:center;}
 .kind-sel:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .kind-sel.saved{border-color:var(--ok);}
@@ -95,15 +95,15 @@ html.embed #migBanner:empty{display:none;}
 .remain-low{color:var(--warn); font-weight:800;}
 .empty{text-align:center; color:var(--lbl); padding:30px; font-size:13px;}
 /* 직접 입력하는 3개 열(계약/산출/발주) — 자동 집계 열과 구분되게 입력칸 모양을 준다. */
-.qty-inp{width:100%; height:21px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px; padding:0 5px;
+.qty-inp{width:100%; height:21px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:0; padding:0 5px;
   font-family:inherit; font-size:12px; font-variant-numeric:tabular-nums; color:var(--ink); text-align:center;}
 .qty-inp:focus{outline:none; border-color:var(--brand-2); background:#fff;}
 .qty-inp.saving{border-color:var(--warn);}
 .qty-inp.saved{border-color:var(--ok);}
 .dtable th.manual{color:var(--brand-2);}
 .dtable td.manual{padding:0 6px;}   /* 입력칸 자체가 높이를 갖고 있으므로 세로 여백은 주지 않는다 */
-.migbox{background:#FEF5E7; border:1px solid #F0C987; border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:12.5px; line-height:1.7; color:#7E5109;}
-.migbox pre{background:#fff; border:1px solid #F0C987; border-radius:6px; padding:8px 10px; margin-top:6px; font-family:var(--font-mono); font-size:11.5px; white-space:pre-wrap; color:#5A3D08;}
+.migbox{background:#FEF5E7; border:1px solid #F0C987; border-radius:0; padding:12px 14px; margin-bottom:14px; font-size:12.5px; line-height:1.7; color:#7E5109;}
+.migbox pre{background:#fff; border:1px solid #F0C987; border-radius:0; padding:8px 10px; margin-top:6px; font-family:var(--font-mono); font-size:11.5px; white-space:pre-wrap; color:#5A3D08;}
 .save-note{font-size:12px; color:var(--lbl); min-height:16px;}
 /* 분류 합계행 / 규격 하위행 */
 .dtable tr.cat-tr{background:#EEF3F9;}
