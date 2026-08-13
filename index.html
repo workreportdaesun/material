@@ -72,7 +72,12 @@ html.embed #migBanner:empty{display:none;}
    화살표를 글 흐름에 두면 그 폭(14px)만큼 이름이 오른쪽으로 밀려 가운데가 안 맞았다. */
 .dtable td.name{font-weight:400; position:relative;}   /* 품목 열 글씨 굵기는 다른 열과 동일하게(2026-08-11 요청) */
 /* 열 폭 — 품목/규격/구분만 따로, 숫자 열은 균등 */
-.dtable th:nth-child(1){width:14%;} .dtable th:nth-child(2){width:11%;}
+/* 1열은 5개 화면 공통 기준(2026-08-13): 이름형이라 150px · 왼쪽 정렬.
+   화살표(.caret)가 left:6px에 절대배치로 떠 있으므로, 왼쪽 정렬로 바꾸면서
+   그 폭만큼(6+14+여백) 왼쪽 여백을 줘야 글자가 화살표에 겹치지 않는다. */
+.dtable th:nth-child(1){width:150px; text-align:left;}
+.dtable td.name{text-align:left; padding-left:24px;}
+.dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
 /* 자재구분(도급/사급) 선택칸 */
 .kind-sel{width:100%; height:21px; display:block; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:5px;
