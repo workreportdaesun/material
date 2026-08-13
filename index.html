@@ -55,7 +55,9 @@ html.embed #migBanner:empty{display:none;}
    전부 본문 글꼴 14px로 맞추고, 숫자 자릿수는 tabular-nums로 세로 정렬을 유지한다. */
 /* 표 틀·글자 서식은 인원동원계획 표(table.dt / .tablewrap)와 동일하게 맞춤(2026-08-11).
    테두리와 모서리는 바깥 .tablewrap이 갖고, 표는 그 안에서 세로로 스크롤된다. */
-.tablewrap{overflow-x:auto; overflow-y:auto; border:1px solid var(--card-bd); border-radius:8px;}
+/* 2026-08-13: 표 틀은 직각(radius 0) — status·progress와 동일. 둥근 모서리는 overflow:auto와
+   만나면 sticky 헤더 좌우 상단을 곡선으로 깎아낸다. 되돌리려면 이 값만 8px로. */
+.tablewrap{overflow-x:auto; overflow-y:auto; border:1px solid var(--card-bd); border-radius:0;}
 .dtable{width:100%; border-collapse:separate; border-spacing:0; font-family:var(--font-body); font-size:12px;
   font-variant-numeric:tabular-nums; background:var(--card); table-layout:fixed; white-space:nowrap;}
 /* 머리글도 본문과 같은 14px — 12px로 두니 아래 항목 내용과 크기가 달라 보였다(2026-08-11). */
