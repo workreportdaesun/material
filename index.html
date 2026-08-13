@@ -78,7 +78,9 @@ html.embed #migBanner:empty{display:none;}
    화살표(.caret)가 left:6px에 절대배치로 떠 있으므로, 왼쪽 정렬로 바꾸면서
    그 폭만큼(6+14+여백) 왼쪽 여백을 줘야 글자가 화살표에 겹치지 않는다. */
 .dtable th:nth-child(1){width:150px; text-align:left;}
-.dtable td.name{text-align:left; padding-left:24px;}
+/* 오른쪽 여백은 이력 단추(📋, right:4px에 절대배치) 자리 — 품목명이 길어도 겹치지 않게. */
+.dtable td.name{text-align:left; padding-left:24px; padding-right:22px;}
+.dtable td.speccell{position:relative; padding-right:22px;}
 .dtable th:nth-child(2){width:11%;}
 .dtable th:nth-child(3){width:7%;} .dtable th:nth-child(4){width:4.5%;}
 /* 자재구분(도급/사급) 선택칸 */
@@ -114,6 +116,66 @@ html.embed #migBanner:empty{display:none;}
 /* 행 높이(25px)와 같은 값이어야 화살표가 세로 가운데에 온다 — 행 높이를 바꾸면 여기도 같이. */
 .caret{position:absolute; left:6px; top:0; height:25px; line-height:25px; width:14px; text-align:center;
   cursor:pointer; user-select:none; color:var(--brand-2);}
+/* 품목별 입출고 이력을 여는 단추 — 품목 이름 오른쪽 끝에 붙는다. 화살표(.caret)와 달리 글 흐름에
+   두지 않고 셀 오른쪽에 절대배치해서 이름 가운데 정렬을 흐트러뜨리지 않는다. */
+.hist-btn{position:absolute; right:4px; top:0; height:25px; line-height:25px; width:16px; text-align:center;
+  cursor:pointer; user-select:none; color:var(--lbl); font-size:11px;}
+.hist-btn:hover{color:var(--brand-2);}
+.dtable td.calc{color:var(--lbl);}         /* 일보에서 자동으로 오는 열(설치) — 입력 열과 구분 */
+.unfit-pos{color:var(--warn); font-weight:800;}   /* 미설치가 남아 있음 = 현장에 나가 있는 양 */
+.unfit-neg{color:var(--err); font-weight:800;}    /* 설치가 출고보다 많음 = 불출 기록 누락 */
+
+/* ── 입출고 등록 / 이력 모달 ────────────────────────────────────────
+   ⚠️ 이 앱은 인원투입계획/실투입(status)의 자재관리 탭 안에 iframe으로도 들어간다.
+      그쪽은 .embed-wrap{overflow:hidden}이고 iframe 높이가 화면에 맞춰 고정돼 있어서,
+      position:fixed 모달은 "브라우저 창"이 아니라 "iframe 사각형" 기준으로 그려진다.
+      그래서 높이를 vh로 잡으면 iframe보다 커져 잘린다 — 반드시 %와 max-height로 가둔다. */
+.modal-back{position:fixed; inset:0; background:rgba(26,35,50,.45); display:none;
+  align-items:center; justify-content:center; padding:12px; z-index:50;}
+.modal-back.show{display:flex;}
+.modal{background:var(--card); border:1px solid var(--card-bd); border-radius:0;
+  width:100%; max-width:900px; max-height:100%; display:flex; flex-direction:column; min-height:0;}
+.modal-hd{background:var(--head-bg); padding:9px 12px; display:flex; justify-content:space-between;
+  align-items:center; border-bottom:1px solid var(--card-bd); flex-shrink:0;}
+.modal-hd h3{font-size:14px; font-weight:800; color:var(--ink);}
+.modal-x{cursor:pointer; font-size:16px; color:var(--lbl); line-height:1; padding:2px 4px;}
+.modal-bd{padding:12px; overflow-y:auto; min-height:0; flex:1 1 auto;}   /* 길어지면 본문만 스크롤 */
+.modal-ft{padding:9px 12px; border-top:1px solid var(--card-bd); display:flex; justify-content:space-between;
+  align-items:center; gap:8px; flex-shrink:0;}
+/* 전표 공통 항목(날짜·구분·전표번호 등) — 한 전표는 구분이 하나다(납품서 한 장 = 전부 입고). */
+.mv-head{display:grid; grid-template-columns:repeat(4,1fr); gap:8px 10px; margin-bottom:12px;}
+.mv-f{display:flex; flex-direction:column; gap:3px;}
+.mv-f label{font-size:11px; font-weight:700; color:var(--lbl);}
+.mv-f input, .mv-f select{background:var(--field-bg); border:1px solid var(--field-bd); border-radius:0;
+  height:26px; padding:0 6px; font-family:inherit; font-size:12px; color:var(--ink);}
+.mv-f input:focus, .mv-f select:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+.mv-f.wide{grid-column:span 2;}
+.mv-tbl{width:100%; border-collapse:separate; border-spacing:0; font-size:12px;
+  border:1px solid var(--card-bd); background:var(--card);}
+.mv-tbl th{background:var(--head-bg); height:24px; font-size:11px; font-weight:700; padding:0 6px;
+  border-right:1px solid var(--card-bd); border-bottom:1px solid var(--card-bd); white-space:nowrap;}
+.mv-tbl td{height:26px; padding:2px 4px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd);}
+.mv-tbl select, .mv-tbl input{width:100%; height:22px; background:var(--field-bg); border:1px solid var(--card-bd);
+  border-radius:0; padding:0 4px; font-family:inherit; font-size:12px; color:var(--ink);}
+.mv-tbl input[type=number]{text-align:center; font-variant-numeric:tabular-nums;}
+.mv-tbl select:focus, .mv-tbl input:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+.mv-del{cursor:pointer; color:var(--err); text-align:center; user-select:none; font-weight:800;}
+.mv-msg{font-size:12px; color:var(--lbl);}
+.btn-ghost{background:var(--field-bg); color:var(--brand-2); border:1px solid var(--field-bd);}
+.btn:disabled{opacity:.5; cursor:default;}
+/* 이력 모달 표 */
+.hist-tbl{width:100%; border-collapse:separate; border-spacing:0; font-size:12px;
+  font-variant-numeric:tabular-nums; border:1px solid var(--card-bd);}
+.hist-tbl th{background:var(--head-bg); height:24px; font-size:11px; font-weight:700; padding:0 7px;
+  border-right:1px solid var(--card-bd); border-bottom:1px solid var(--card-bd); white-space:nowrap;}
+.hist-tbl td{height:25px; padding:0 7px; text-align:center; border-top:1px solid var(--card-bd);
+  border-right:1px solid var(--card-bd); white-space:nowrap;}
+.hist-tbl td.l{text-align:left;}
+.mv-tag{display:inline-block; padding:0 5px; font-size:11px; font-weight:700; line-height:17px;}
+.mv-tag.in{background:#E8F5EC; color:#1E7A42;}
+.mv-tag.out{background:#FDEDEC; color:#A93226;}
+.mv-tag.ret{background:#FEF5E7; color:#9C6209;}
+.mv-tag.adj{background:#EAEFF6; color:var(--brand-1);}
 </style>
 </head>
 <body>
@@ -147,6 +209,7 @@ html.embed #migBanner:empty{display:none;}
     <div style="display:flex; gap:8px; flex-shrink:0;">
       <!-- 🔄 새로고침 버튼은 삭제(2026-08-12 사용자 요청). loadMaterialData()는 화면을 열 때
            자동으로 돌고, 작업일보 설정이 바뀌면 구독으로 다시 불러오므로 수동 버튼이 필요 없다. -->
+      <button type="button" class="btn" onclick="openMoveModal()" id="btnAddMove">➕ 입출고 등록</button>
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
     </div>
   </div>
@@ -155,14 +218,85 @@ html.embed #migBanner:empty{display:none;}
   <table class="dtable">
     <tr>
       <!-- 머리글은 붙여쓰지 않고 띄어쓴다(2026-08-11 요청) — "계약수량" → "계약 수량" -->
+      <!-- 2026-08-13: 입출고 대장(material_moves) 도입으로 열을 10 → 12개로 늘렸다.
+           예전 "출고 수량"은 실제로는 일보 시공 실적(=설치량)이었다 — 그 값은 '설치' 열로 옮기고,
+           '출고'는 창고에서 실제로 불출한 양(대장 기록)을 뜻하게 바꿨다. 그래서
+           잔여 = 입고 - 출고 (창고 재고), 미설치 = 출고 - 설치 (현장에 나가 있는 양)이 된다. -->
       <th>품목 (작업분류)</th><th>규격</th><th class="manual">구분</th><th>단위</th>
       <th class="right manual">계약 수량</th><th class="right manual">산출 수량</th><th class="right manual">발주 수량</th>
-      <th class="right">입고</th><th class="right">출고 수량</th><th class="right">잔여 수량</th>
+      <th class="right">입고</th><th class="right">출고</th><th class="right">잔여 수량</th>
+      <th class="right">설치</th><th class="right">미설치</th>
     </tr>
-    <tbody id="matRows"><tr><td colspan="10" class="empty">불러오는 중...</td></tr></tbody>
+    <tbody id="matRows"><tr><td colspan="12" class="empty">불러오는 중...</td></tr></tbody>
   </table>
   </div>
   <div class="save-note" id="saveNote" style="margin-top:8px;"></div>
+  <div class="note">입고는 작업일보 <b>자재</b> 공종이 정본입니다 — 아래 등록창의 <b>입고</b>는 일보에 올리지 않은 건만 넣어주세요(같이 넣으면 두 번 계산됩니다). <b>출고</b>는 창고에서 실제로 불출한 양이고, <b>설치</b>는 작업일보 <b>시공</b> 공종에서 자동으로 옵니다. 잔여 = 입고 − 출고(창고 재고), 미설치 = 출고 − 설치(현장에 나가 있는 양).</div>
+</div>
+
+<!-- ── 입출고 등록 ─────────────────────────────────────────────────
+     한 전표(납품서/불출서) 한 장 = 구분 하나 + 품목 여러 줄. 그래서 날짜·구분·전표번호는
+     위에 한 번만 두고, 아래 표에서 품목/규격/수량만 줄 단위로 받는다. -->
+<div class="modal-back" id="moveModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3>입출고 등록</h3>
+      <span class="modal-x" onclick="closeMoveModal()">✕</span>
+    </div>
+    <div class="modal-bd">
+      <div class="mv-head">
+        <div class="mv-f"><label>날짜</label><input type="date" id="mvDate"></div>
+        <div class="mv-f"><label>구분</label>
+          <select id="mvType" onchange="onMvTypeChange()">
+            <option value="입고">입고</option>
+            <option value="출고" selected>출고</option>
+            <option value="반품">반품</option>
+            <option value="조정">조정</option>
+          </select>
+        </div>
+        <div class="mv-f"><label>도급/사급</label>
+          <select id="mvKind"><option value="">-</option><option value="도급">도급</option><option value="사급">사급</option></select>
+        </div>
+        <div class="mv-f"><label id="mvDocLbl">불출번호</label><input type="text" id="mvDoc" placeholder="전표번호"></div>
+        <div class="mv-f"><label id="mvPlaceLbl">반출처</label><input type="text" id="mvPlace" placeholder="장소"></div>
+        <div class="mv-f"><label>수령자 / 팀</label><input type="text" id="mvTaker" placeholder="수령자"></div>
+        <div class="mv-f wide"><label>비고</label><input type="text" id="mvNote" placeholder="비고"></div>
+      </div>
+      <table class="mv-tbl">
+        <tr>
+          <th style="width:34%">품목 (작업분류)</th><th style="width:30%">규격</th>
+          <th style="width:16%">수량</th><th style="width:12%">단위</th><th style="width:8%">삭제</th>
+        </tr>
+        <tbody id="mvRows"></tbody>
+      </table>
+      <div style="margin-top:8px;">
+        <button type="button" class="btn btn-ghost" onclick="addMvRow()">＋ 행 추가</button>
+      </div>
+      <div id="mvHint" class="note"></div>
+    </div>
+    <div class="modal-ft">
+      <span class="mv-msg" id="mvMsg"></span>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-ghost" onclick="closeMoveModal()">취소</button>
+        <button type="button" class="btn" id="mvSaveBtn" onclick="saveMoves()">저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 품목별 입출고 이력 ───────────────────────────────────────── -->
+<div class="modal-back" id="histModal">
+  <div class="modal">
+    <div class="modal-hd">
+      <h3 id="histTitle">입출고 이력</h3>
+      <span class="modal-x" onclick="closeHistModal()">✕</span>
+    </div>
+    <div class="modal-bd" id="histBody"></div>
+    <div class="modal-ft">
+      <span class="mv-msg" id="histMsg"></span>
+      <button type="button" class="btn btn-ghost" onclick="closeHistModal()">닫기</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -190,6 +324,11 @@ var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,
    키 이름(contract/takeoff/ordered)과 '분류명|규격' 키 형식을 그쪽에서도 그대로 써야 한다. */
 var MAT_FIELDS=[{key:'contract',label:'계약수량'},{key:'takeoff',label:'산출수량'},{key:'ordered',label:'발주수량'}];
 var materialQty={}, matCats=[], matQtyColumnOk=true, specsByCat={};
+/* 입출고 대장(material_moves) — 전표 한 줄이 한 행이다. 표의 입고/출고 열은 여기 합계를 쓴다.
+   부호 규칙: 입고 +재고, 출고 -재고, 반품 -재고(공급사로 되돌림), 조정 ±재고(실사 보정, 음수 허용).
+   화면에서 잔여 = 입고 - 출고 가 그대로 읽히도록, 반품·조정은 '입고' 열에 녹여서 보여준다
+   (내역은 품목 행의 📋 이력에서 확인). */
+var matMoves=[], matMovesTableOk=true, movesByKey={};
 /* 표의 실제 행 목록. 규격이 있는 분류는 합계행(cat) + 규격행(spec)으로 나뉘고, 규격이 없는 분류는
    한 줄(single)이다. 저장 키는 규격 없는 분류=분류명, 규격행='분류명|규격'. 셀 onchange에는 이
    배열의 인덱스만 넘긴다 — 규격 값에 따옴표(3/8")가 들어있어 문자열을 그대로 박으면 깨진다. */
@@ -238,9 +377,41 @@ function setSaveNote(msg, color){
   el.style.color=color||'var(--lbl)';
 }
 function renderMigBanner(){
-  document.getElementById('migBanner').innerHTML = matQtyColumnOk ? '' :
-    '<div class="migbox">⚠️ <b>app_settings.material_qty</b> 컬럼이 없어 계약/산출/발주 수량이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.'
-    +'<pre>ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS material_qty jsonb DEFAULT \'{}\'::jsonb;</pre></div>';
+  var html='';
+  if(!matQtyColumnOk){
+    html += '<div class="migbox">⚠️ <b>app_settings.material_qty</b> 컬럼이 없어 계약/산출/발주 수량이 저장되지 않습니다. Supabase SQL Editor에서 아래를 실행해주세요.'
+      +'<pre>ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS material_qty jsonb DEFAULT \'{}\'::jsonb;</pre></div>';
+  }
+  /* material_moves(입출고 대장)는 2026-08-13에 새로 도입한 별도 테이블이다. app_settings의 jsonb
+     한 칸에 누적 합계만 담지 않고 전표를 한 줄씩 쌓는 이유:
+     ① 잔여가 음수일 때 "언제 누가 얼마 가져갔나"를 되짚을 수 있어야 하고,
+     ② app_settings는 id='global' 한 행이라 전표가 쌓이면 동시 저장이 서로를 덮어쓴다.
+     RLS는 daily_reports·app_settings와 같은 상태(미사용)로 맞춘다 — 여기만 켜면 publishable
+     키로 읽고 쓰는 이 앱에서 조회가 통째로 막힌다. */
+  if(!matMovesTableOk){
+    html += '<div class="migbox">⚠️ <b>material_moves</b> 테이블이 없어 입출고 등록을 쓸 수 없습니다. Supabase SQL Editor에서 아래를 실행해주세요.'
+      +'<pre>create table if not exists material_moves (\n'
+      +'  id            bigserial primary key,\n'
+      +'  moved_on      date not null,\n'
+      +'  move_type     text not null check (move_type in (\'입고\',\'출고\',\'반품\',\'조정\')),\n'
+      +'  cat           text not null,\n'
+      +'  spec          text not null default \'\',\n'
+      +'  qty           numeric not null,\n'
+      +'  unit          text,\n'
+      +'  contract_kind text,\n'
+      +'  doc_no        text,\n'
+      +'  place         text,\n'
+      +'  taker         text,\n'
+      +'  note          text,\n'
+      +'  created_by    text,\n'
+      +'  created_at    timestamptz not null default now()\n'
+      +');\n'
+      +'create index if not exists material_moves_cat_idx  on material_moves (cat, spec);\n'
+      +'create index if not exists material_moves_date_idx on material_moves (moved_on);</pre></div>';
+  }
+  document.getElementById('migBanner').innerHTML = html;
+  var b=document.getElementById('btnAddMove');
+  if(b) b.disabled = !matMovesTableOk;
 }
 function matVal(key, field){
   var r=materialQty[key];
@@ -322,8 +493,23 @@ function renderRows(){
   var html = matRows.map(function(r,i){
     if(!f.vis[i]) return '';
     shown++;
-    var rem=r.inQty-r.useQty;
-    var remClass = rem<0 ? 'remain-neg' : (r.inQty>0 && rem/r.inQty<0.1 ? 'remain-low' : '');
+    /* 입고 = 일보 '자재' 공종 + 대장 입고 - 대장 반품 + 대장 조정.
+       출고 = 대장 출고만(창고 불출). 설치 = 일보 '시공' 공종.
+       예전에는 출고 자리에 설치량이 들어가 있어서, 창고에서 나갔지만 아직 안 붙인 자재가
+       어디에도 안 잡혔다(2026-08-13 분리). */
+    var inTot  = r.inQty + (r.mvIn||0) - (r.mvRet||0) + (r.mvAdj||0);
+    var outTot = (r.mvOut||0);
+    var rem    = inTot - outTot;
+    var inst   = r.useQty;
+    var unfit  = outTot - inst;
+    var remClass = rem<0 ? 'remain-neg' : (inTot>0 && rem/inTot<0.1 ? 'remain-low' : '');
+    // 미설치가 음수 = 불출 기록 없이 설치만 올라온 것(대장 누락). 양수면 현장에 나가 있는 양.
+    var unfitClass = unfit<0 ? 'unfit-neg' : (unfit>0 ? 'unfit-pos' : '');
+    // 반품·조정이 섞여 있으면 입고 열 숫자가 일보 값과 달라 보이므로 근거를 툴팁으로 남긴다.
+    var inTip = '일보 자재 '+num(r.inQty)
+      + ((r.mvIn||0)  ? ' + 대장입고 '+num(r.mvIn) : '')
+      + ((r.mvRet||0) ? ' − 반품 '+num(r.mvRet) : '')
+      + ((r.mvAdj||0) ? ' + 조정 '+num(r.mvAdj) : '');
     var kind=kindOf(r.cat);
     // 구분 칸: 분류 합계행과 규격 없는 단독행에서만 고르고, 규격 줄은 ″로 따라간다
     var kindCell;
@@ -341,7 +527,8 @@ function renderRows(){
 
     if(r.type==='cat'){
       nameCell='<td class="name cat-row"><span class="caret" onclick="toggleCat('+i+')">'
-        +(collapsed[r.cat]?'▸':'▾')+'</span>'+esc(r.cat)+'</td>';
+        +(collapsed[r.cat]?'▸':'▾')+'</span>'+esc(r.cat)
+        +'<span class="hist-btn" title="입출고 이력" onclick="openHist('+i+')">📋</span></td>';
       specCell='<td class="dim">(합계)</td>';
       // 합계행은 읽기 전용 — 규격 줄에 넣은 값의 합을 보여준다.
       manualCells=MAT_FIELDS.map(function(f){
@@ -352,9 +539,12 @@ function renderRows(){
       specCell='<td class="dim"><span class="sub-mark">└</span>(규격 미지정)</td>';
       manualCells=MAT_FIELDS.map(function(){ return '<td class="right dim">-</td>'; }).join('');
     } else {
-      nameCell='<td class="name sub">'+(r.type==='single'?esc(r.cat):'')+'</td>';
-      specCell='<td>'+(r.type==='single'?'<span class="dim">-</span>'
-        :'<span class="sub-mark">└</span>'+esc(r.spec))+'</td>';
+      nameCell='<td class="name sub">'+(r.type==='single'?esc(r.cat):'')
+        +(r.type==='single'?'<span class="hist-btn" title="입출고 이력" onclick="openHist('+i+')">📋</span>':'')+'</td>';
+      // 규격 줄은 이름 칸이 비어 있으므로 이력 단추를 규격 칸 오른쪽에 붙인다.
+      specCell='<td class="speccell">'+(r.type==='single'?'<span class="dim">-</span>'
+        :'<span class="sub-mark">└</span>'+esc(r.spec)
+          +'<span class="hist-btn" title="입출고 이력" onclick="openHist('+i+')">📋</span>')+'</td>';
       manualCells=MAT_FIELDS.map(function(f){
         return '<td class="right manual"><input type="number" class="qty-inp" id="mq-'+i+'-'+f.key+'"'
           +' value="'+esc(matVal(r.key,f.key))+'" placeholder="-"'+(matQtyColumnOk?'':' disabled')
@@ -363,11 +553,14 @@ function renderRows(){
     }
     return '<tr'+(r.type==='cat'?' class="cat-tr"':'')+'>'+nameCell+specCell+kindCell+'<td>'+esc(r.unit)+'</td>'
       + manualCells
-      +'<td class="right">'+num(r.inQty)+'</td><td class="right">'+num(r.useQty)+'</td>'
-      +'<td class="right '+remClass+'">'+num(rem)+'</td></tr>';
+      +'<td class="right" title="'+esc(inTip)+'">'+num(inTot)+'</td>'
+      +'<td class="right">'+num(outTot)+'</td>'
+      +'<td class="right '+remClass+'">'+num(rem)+'</td>'
+      +'<td class="right calc">'+num(inst)+'</td>'
+      +'<td class="right '+unfitClass+'">'+num(unfit)+'</td></tr>';
   }).join('');
   wrap.innerHTML = shown ? html
-    : '<tr><td colspan="10" class="empty">'+(f.filtering?'검색 결과가 없습니다':'표시할 품목이 없습니다')+'</td></tr>';
+    : '<tr><td colspan="12" class="empty">'+(f.filtering?'검색 결과가 없습니다':'표시할 품목이 없습니다')+'</td></tr>';
   // 전체 품목 수는 합계행(type==='cat')과 규격 없는 단독행(type==='single') 개수로 센다.
   var totalCats = matRows.filter(function(r){ return r.type==='cat'||r.type==='single'; }).length;
   var shownCats = matRows.filter(function(r,i){ return f.vis[i] && (r.type==='cat'||r.type==='single'); }).length;
@@ -419,13 +612,32 @@ async function saveMatQty(idx, field, raw){
   }
 }
 
+/* PostgREST는 한 번에 1000행까지만 돌려주고, 넘으면 에러 없이 조용히 잘라낸다 — 일보가 1000건을
+   넘는 순간 입고/출고 집계가 소리 없이 틀려진다. 페이지를 끊어 읽으므로 정렬은 유일하게
+   결정되도록 컬럼을 지정한다(순서가 흔들리면 같은 행을 두 번 읽거나 건너뛴다).
+   status(work-status-daesun)의 fetchAllRows와 같은 규칙. */
+async function fetchAllRows(table, columns, orderCols){
+  var PAGE=1000, from=0, out=[];
+  for(;;){
+    var q = sbClient.from(table).select(columns);
+    (orderCols||[]).forEach(function(c){ q = q.order(c, {ascending:true}); });
+    var res = await q.range(from, from+PAGE-1);
+    if(res.error) return {error:res.error, data:null};
+    var rows = res.data || [];
+    out = out.concat(rows);
+    if(rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return {error:null, data:out};
+}
+
 async function loadMaterialData(){
   var wrap = document.getElementById('matRows');
-  if(!sbClient){ wrap.innerHTML='<tr><td colspan="10" class="empty">Supabase 연결 실패</td></tr>'; return; }
-  wrap.innerHTML='<tr><td colspan="10" class="empty">불러오는 중...</td></tr>';
+  if(!sbClient){ wrap.innerHTML='<tr><td colspan="12" class="empty">Supabase 연결 실패</td></tr>'; return; }
+  wrap.innerHTML='<tr><td colspan="12" class="empty">불러오는 중...</td></tr>';
   setSaveNote('');
   try{
-    var reportsRes = await sbClient.from('daily_reports').select('items');
+    var reportsRes = await fetchAllRows('daily_reports','id,items',['id']);
     /* material_qty 컬럼이 아직 없으면 이 select 전체가 실패하므로(42703), 실패하면 그 열만 빼고
        다시 읽어서 나머지(단위·분류 목록)는 정상적으로 보여준다. */
     var settingsRes = await sbClient.from('app_settings').select('item_unit,cats_by_menu,specs_by_cat,material_qty').eq('id','global').single();
@@ -435,8 +647,14 @@ async function loadMaterialData(){
     } else {
       matQtyColumnOk=true;
     }
+    /* 입출고 대장. 테이블이 아직 없으면 42P01(404)로 실패하는데, 그건 배너로 안내하고
+       나머지 화면(일보 집계·직접 입력)은 그대로 보여준다 — material_qty 컬럼 없을 때와 같은 처리. */
+    var movesRes = await fetchAllRows('material_moves','*',['moved_on','id']);
+    if(movesRes.error){ matMovesTableOk=false; matMoves=[]; }
+    else { matMovesTableOk=true; matMoves=movesRes.data||[]; }
+
     renderMigBanner();
-    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="10" class="empty">불러오기 실패</td></tr>'; return; }
+    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패</td></tr>'; return; }
     var sd = settingsRes.data || {};
     var itemUnit = sd.item_unit || {};
     materialQty = sd.material_qty || {};
@@ -465,6 +683,30 @@ async function loadMaterialData(){
       });
     });
 
+    /* 대장(material_moves) 집계 — 일보와 같은 '분류|규격' 키를 쓴다. 분류 합계행이 규격행들의
+       합과 어긋나지 않도록 규격별과 분류별을 따로 더한다(규격을 안 고른 전표는 spec='').
+       movesByKey는 📋 이력 모달이 바로 꺼내 쓰는 목록이라 정렬된 순서 그대로 담는다. */
+    var mvCat={}, mvSpec={};
+    var MV_FIELD={'입고':'in','출고':'out','반품':'ret','조정':'adj'};
+    function mvBucket(store,k){
+      return store[k] || (store[k]={in:0,out:0,ret:0,adj:0});
+    }
+    movesByKey={};
+    matMoves.forEach(function(m){
+      if(!m || !m.cat) return;
+      var fld=MV_FIELD[m.move_type];
+      if(!fld) return;                              // 모르는 구분은 집계에서 제외
+      var sp=(m.spec==null?'':String(m.spec));
+      var q=Number(m.qty)||0;
+      var k=m.cat+'|'+sp;
+      mvBucket(mvCat, m.cat)[fld] += q;
+      mvBucket(mvSpec, k)[fld]    += q;
+      (movesByKey[m.cat] = movesByKey[m.cat] || []).push(m);   // 품목 전체 이력
+      if(sp) (movesByKey[k] = movesByKey[k] || []).push(m);    // 규격별 이력
+      if(q) (specSeen[m.cat]=specSeen[m.cat]||{})[sp]=1;       // 대장에만 있는 규격도 행을 만든다
+    });
+    function mvOf(store,k){ return store[k] || {in:0,out:0,ret:0,adj:0}; }
+
     /* 품목 목록은 네 곳을 합친다:
        ① 작업일보 ⚙️작업분류 설정(cats_by_menu['시공']) — 아직 일보 실적이 없어도 계약수량을 미리
           넣을 수 있어야 하므로 설정에 있는 분류는 전부 행을 만든다(2026-08-11 직접 입력 도입).
@@ -482,6 +724,7 @@ async function loadMaterialData(){
     function addExtra(c){ if(c && !seen[c] && extra.indexOf(c)===-1) extra.push(c); }
     Object.keys(incoming).forEach(addExtra);
     Object.keys(used).forEach(addExtra);
+    Object.keys(mvCat).forEach(addExtra);   // 대장에만 있는 품목(설정에서 지워진 분류)도 숨기지 않는다
     Object.keys(materialQty).forEach(function(k){ addExtra(k.split('|')[0]); });
     Object.keys(specsByCat).forEach(addExtra);
     extra.sort(function(a,b){ return a.localeCompare(b,'ko'); }).forEach(addCat);
@@ -506,32 +749,35 @@ async function loadMaterialData(){
       // 규격 없이 입력된 수량이 있으면 그 몫을 보여줄 행을 맨 뒤에 붙인다.
       var blankIn=inBySpec[cat+'|']||0, blankUse=useBySpec[cat+'|']||0;
 
+      // 일보 집계(inQty/useQty)와 대장 집계(mvIn/mvOut/mvRet/mvAdj)를 한 행에 같이 담는다.
+      function mkRow(type, spec, key, mv, inQ, useQ){
+        return {type:type, cat:cat, spec:spec, key:key, unit:unit, inQty:inQ, useQty:useQ,
+          mvIn:mv.in, mvOut:mv.out, mvRet:mv.ret, mvAdj:mv.adj};
+      }
       if(!specs.length){
-        matRows.push({type:'single', cat:cat, spec:'', key:cat, unit:unit,
-          inQty:incoming[cat]||0, useQty:used[cat]||0});
+        matRows.push(mkRow('single','',cat, mvOf(mvCat,cat), incoming[cat]||0, used[cat]||0));
         return;
       }
-      matRows.push({type:'cat', cat:cat, spec:'', key:cat, unit:unit,
-        inQty:incoming[cat]||0, useQty:used[cat]||0});
+      matRows.push(mkRow('cat','',cat, mvOf(mvCat,cat), incoming[cat]||0, used[cat]||0));
       specs.forEach(function(s){
         var sk=cat+'|'+s;
-        matRows.push({type:'spec', cat:cat, spec:s, key:sk, unit:unit,
-          inQty:inBySpec[sk]||0, useQty:useBySpec[sk]||0});
+        matRows.push(mkRow('spec',s,sk, mvOf(mvSpec,sk), inBySpec[sk]||0, useBySpec[sk]||0));
       });
-      if(blankIn || blankUse){
-        matRows.push({type:'blank', cat:cat, spec:'', key:'', unit:unit,
-          inQty:blankIn, useQty:blankUse});
+      // 규격을 안 고르고 넣은 몫(일보·대장 양쪽) — 있어야 합계행과 규격행 합이 왜 다른지 보인다.
+      var blankMv=mvOf(mvSpec, cat+'|');
+      if(blankIn || blankUse || blankMv.in || blankMv.out || blankMv.ret || blankMv.adj){
+        matRows.push(mkRow('blank','','', blankMv, blankIn, blankUse));
       }
     });
 
     if(!matRows.length){
-      wrap.innerHTML='<tr><td colspan="10" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
+      wrap.innerHTML='<tr><td colspan="12" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
     } else {
       renderRows();
     }
   }catch(e){
     console.error('자재 데이터 불러오기 실패', e);
-    wrap.innerHTML='<tr><td colspan="10" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
+    wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
   }
 }
 /* 작업일보 ⚙️설정에서 규격·작업분류·단위를 고치면 새로고침 없이 바로 따라간다 —
@@ -557,6 +803,203 @@ function subscribeSettingsRealtime(){
     })
     .subscribe();
 }
+/* ── 입출고 등록 ───────────────────────────────────────────────────
+   전표 한 장 = 구분 하나 + 품목 여러 줄. 구분/날짜/전표번호는 위에서 한 번만 받고, 아래 표는
+   품목·규격·수량만 줄 단위로 받아 material_moves에 한꺼번에 insert한다.
+   ⚠️ 품목·규격 드롭다운은 반드시 matCats/specsByCat(=작업일보 ⚙️설정)에서만 만든다. 자유 입력을
+      허용하면 일보 분류명과 한 글자만 달라도 집계가 갈라져서, 표에 유령 품목이 생긴다. */
+var MV_LABELS={
+  '입고':{doc:'검수번호 / Packing NO.', place:'자재보관장소', taker:'인수자'},
+  '출고':{doc:'불출번호',              place:'반출처',       taker:'수령자 / 팀'},
+  '반품':{doc:'반품번호',              place:'반품처',       taker:'처리자'},
+  '조정':{doc:'실사번호',              place:'보관장소',     taker:'확인자'}
+};
+function onMvTypeChange(){
+  var t=document.getElementById('mvType').value;
+  var L=MV_LABELS[t]||MV_LABELS['출고'];
+  document.getElementById('mvDocLbl').textContent=L.doc;
+  document.getElementById('mvPlaceLbl').textContent=L.place;
+  var hint=document.getElementById('mvHint');
+  if(t==='입고'){
+    hint.innerHTML='⚠️ 작업일보 <b>자재</b> 공종으로 이미 올린 입고는 여기에 또 넣지 마세요 — 두 번 계산됩니다. 일보에 안 올린 입고만 넣습니다.';
+  } else if(t==='조정'){
+    hint.innerHTML='재고 실사 보정입니다. 재고를 줄이려면 수량에 <b>음수</b>를 넣으세요.';
+  } else if(t==='반품'){
+    hint.innerHTML='공급사로 되돌려보낸 양입니다 — 입고에서 빠집니다.';
+  } else {
+    hint.innerHTML='창고에서 실제로 불출한 양입니다. 설치 실적(일보 <b>시공</b> 공종)과는 별개로 기록됩니다.';
+  }
+}
+function mvCatOptions(sel){
+  return '<option value="">- 선택 -</option>' + matCats.map(function(c){
+    return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>';
+  }).join('');
+}
+function mvSpecOptions(cat, sel){
+  var specs=(specsByCat[cat]||[]);
+  return '<option value="">(규격 없음)</option>' + specs.map(function(s){
+    return '<option value="'+esc(s)+'"'+(sel===s?' selected':'')+'>'+esc(s)+'</option>';
+  }).join('');
+}
+var mvSeq=0;
+function addMvRow(cat, spec){
+  var id=++mvSeq;
+  var tr=document.createElement('tr');
+  tr.id='mvr-'+id;
+  tr.innerHTML='<td><select onchange="onMvCatChange('+id+')" id="mvc-'+id+'">'+mvCatOptions(cat||'')+'</select></td>'
+    +'<td><select id="mvs-'+id+'">'+mvSpecOptions(cat||'', spec||'')+'</select></td>'
+    +'<td><input type="number" step="any" id="mvq-'+id+'" placeholder="0"></td>'
+    +'<td id="mvu-'+id+'" style="text-align:center;color:var(--lbl);">'+esc(cat?unitOfCat(cat):'-')+'</td>'
+    +'<td class="mv-del" onclick="delMvRow('+id+')">✕</td>';
+  document.getElementById('mvRows').appendChild(tr);
+}
+function unitOfCat(cat){
+  var r=matRows.filter(function(x){ return x.cat===cat; })[0];
+  return r?r.unit:'EA';
+}
+function onMvCatChange(id){
+  var cat=document.getElementById('mvc-'+id).value;
+  document.getElementById('mvs-'+id).innerHTML=mvSpecOptions(cat,'');
+  document.getElementById('mvu-'+id).textContent=cat?unitOfCat(cat):'-';
+}
+function delMvRow(id){
+  var tr=document.getElementById('mvr-'+id);
+  if(tr) tr.remove();
+  if(!document.getElementById('mvRows').children.length) addMvRow();   // 최소 한 줄은 남긴다
+}
+function openMoveModal(){
+  if(!matMovesTableOk) return;
+  document.getElementById('mvDate').value = new Date().toISOString().slice(0,10);
+  ['mvDoc','mvPlace','mvTaker','mvNote'].forEach(function(k){ document.getElementById(k).value=''; });
+  document.getElementById('mvKind').value='';
+  document.getElementById('mvRows').innerHTML='';
+  addMvRow();
+  document.getElementById('mvMsg').textContent='';
+  onMvTypeChange();
+  document.getElementById('moveModal').classList.add('show');
+}
+function closeMoveModal(){ document.getElementById('moveModal').classList.remove('show'); }
+function setMvMsg(m,c){ var e=document.getElementById('mvMsg'); e.textContent=m||''; e.style.color=c||'var(--lbl)'; }
+
+async function saveMoves(){
+  if(!sbClient || !matMovesTableOk) return;
+  var type=document.getElementById('mvType').value;
+  var date=document.getElementById('mvDate').value;
+  if(!date){ setMvMsg('날짜를 입력해주세요','var(--err)'); return; }
+  var common={
+    moved_on:date, move_type:type,
+    contract_kind:document.getElementById('mvKind').value||null,
+    doc_no:document.getElementById('mvDoc').value.trim()||null,
+    place:document.getElementById('mvPlace').value.trim()||null,
+    taker:document.getElementById('mvTaker').value.trim()||null,
+    note:document.getElementById('mvNote').value.trim()||null,
+    created_by:(localStorage.getItem('member_name')||null)
+  };
+  var rows=[], bad='';
+  Array.prototype.forEach.call(document.getElementById('mvRows').children, function(tr){
+    var id=tr.id.replace('mvr-','');
+    var cat=document.getElementById('mvc-'+id).value;
+    var spec=document.getElementById('mvs-'+id).value;
+    var qRaw=document.getElementById('mvq-'+id).value.trim();
+    if(!cat && qRaw==='') return;                       // 빈 줄은 조용히 건너뛴다
+    if(!cat){ bad=bad||'품목을 고르지 않은 줄이 있습니다'; return; }
+    if(qRaw===''){ bad=bad||'수량이 비어 있는 줄이 있습니다'; return; }
+    var q=Number(qRaw);
+    if(!isFinite(q) || q===0){ bad=bad||'수량이 0이거나 숫자가 아닌 줄이 있습니다'; return; }
+    // 조정만 음수를 허용한다 — 입고/출고/반품에 음수를 넣으면 부호가 두 번 뒤집혀 재고가 반대로 간다.
+    if(q<0 && type!=='조정'){ bad=bad||'음수 수량은 구분이 「조정」일 때만 넣을 수 있습니다'; return; }
+    rows.push(Object.assign({}, common, {cat:cat, spec:spec||'', qty:q, unit:unitOfCat(cat)}));
+  });
+  if(bad){ setMvMsg('❌ '+bad,'var(--err)'); return; }
+  if(!rows.length){ setMvMsg('❌ 등록할 줄이 없습니다','var(--err)'); return; }
+
+  var btn=document.getElementById('mvSaveBtn');
+  btn.disabled=true; setMvMsg('저장 중...');
+  try{
+    var res=await sbClient.from('material_moves').insert(rows);
+    if(res.error) throw new Error(res.error.message);
+    closeMoveModal();
+    setSaveNote('✓ '+type+' '+rows.length+'건 등록됨','var(--ok)');
+    await loadMaterialData();
+  }catch(e){
+    console.error('입출고 등록 실패', e);
+    setMvMsg('❌ 저장 실패: '+(e.message||e),'var(--err)');
+  }finally{ btn.disabled=false; }
+}
+
+/* ── 품목별 입출고 이력 ─────────────────────────────────────────── */
+var histKey='', histLabel='';
+function openHist(i){
+  var r=matRows[i];
+  if(!r) return;
+  histKey = r.key || r.cat;
+  histLabel = r.cat + (r.type==='spec' ? ' / '+r.spec : '');
+  document.getElementById('histTitle').textContent='입출고 이력 — '+histLabel;
+  document.getElementById('histMsg').textContent='';
+  renderHist();
+  document.getElementById('histModal').classList.add('show');
+}
+function closeHistModal(){ document.getElementById('histModal').classList.remove('show'); }
+function renderHist(){
+  var list=(movesByKey[histKey]||[]).slice().sort(function(a,b){
+    return String(b.moved_on).localeCompare(String(a.moved_on)) || (b.id-a.id);
+  });
+  var body=document.getElementById('histBody');
+  if(!matMovesTableOk){ body.innerHTML='<div class="empty">입출고 대장 테이블이 아직 없습니다</div>'; return; }
+  if(!list.length){ body.innerHTML='<div class="empty">등록된 입출고 기록이 없습니다</div>'; return; }
+  var TAG={'입고':'in','출고':'out','반품':'ret','조정':'adj'};
+  body.innerHTML='<table class="hist-tbl"><tr>'
+    +'<th style="width:92px">날짜</th><th style="width:56px">구분</th><th>규격</th><th style="width:72px">수량</th>'
+    +'<th style="width:56px">도급/사급</th><th>전표번호</th><th>장소</th><th>수령자</th><th>비고</th>'
+    +'<th style="width:74px">등록자</th><th style="width:44px">삭제</th></tr>'
+    + list.map(function(m){
+      return '<tr>'
+        +'<td>'+esc(m.moved_on)+'</td>'
+        +'<td><span class="mv-tag '+(TAG[m.move_type]||'adj')+'">'+esc(m.move_type)+'</span></td>'
+        +'<td class="l">'+esc(m.spec||'-')+'</td>'
+        +'<td>'+num(Number(m.qty)||0)+'</td>'
+        +'<td>'+esc(m.contract_kind||'-')+'</td>'
+        +'<td class="l">'+esc(m.doc_no||'-')+'</td>'
+        +'<td class="l">'+esc(m.place||'-')+'</td>'
+        +'<td class="l">'+esc(m.taker||'-')+'</td>'
+        +'<td class="l">'+esc(m.note||'-')+'</td>'
+        +'<td>'+esc(m.created_by||'-')+'</td>'
+        +'<td class="mv-del" onclick="delMove('+m.id+')">✕</td></tr>';
+    }).join('') + '</table>';
+}
+async function delMove(id){
+  if(!sbClient || !matMovesTableOk) return;
+  if(!confirm('이 입출고 기록을 삭제할까요? 되돌릴 수 없습니다.')) return;
+  var msg=document.getElementById('histMsg');
+  msg.textContent='삭제 중...'; msg.style.color='var(--lbl)';
+  try{
+    var res=await sbClient.from('material_moves').delete().eq('id', id);
+    if(res.error) throw new Error(res.error.message);
+    await loadMaterialData();
+    renderHist();                       // 다시 읽은 movesByKey로 목록을 새로 그린다
+    msg.textContent='✓ 삭제됨'; msg.style.color='var(--ok)';
+  }catch(e){
+    console.error('입출고 삭제 실패', e);
+    msg.textContent='❌ 삭제 실패: '+(e.message||e); msg.style.color='var(--err)';
+  }
+}
+/* 다른 사람이 전표를 넣으면 이 화면도 따라간다. app_settings 구독과 달리 여기는 어떤 변화든
+   집계가 달라지므로 조건 없이 다시 읽는다(입력 중인 칸이 없는 테이블이라 포커스 문제도 없다). */
+function subscribeMovesRealtime(){
+  if(!sbClient || !sbClient.channel) return;
+  sbClient.channel('material_moves_changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'material_moves'},function(){
+      loadMaterialData();
+    })
+    .subscribe();
+}
+/* 모달 바깥(어두운 배경)을 누르면 닫는다 — 안쪽 카드를 누른 건 무시. */
+['moveModal','histModal'].forEach(function(id){
+  document.getElementById(id).addEventListener('click', function(e){
+    if(e.target===this) this.classList.remove('show');
+  });
+});
+
 /* 표를 화면 아래 끝까지 채운다(2026-08-11). 고정값(70vh)으로 두면 위쪽 요소 높이에 따라
    아래에 빈 공간이 남거나 넘쳤다 — 표 틀의 실제 위치를 재서 남는 높이를 전부 준다.
    저장 안내줄이 나중에 채워지므로 그 높이도 빼둔다. */
@@ -573,6 +1016,7 @@ window.addEventListener('resize', fitMatTableHeight);
 
 loadMaterialData();
 subscribeSettingsRealtime();
+subscribeMovesRealtime();
 </script>
 
 <!-- 앱 공용 이동 버튼. 파일은 report 저장소에 하나만 두고 각 앱이 절대경로로 불러온다. -->
