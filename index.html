@@ -869,7 +869,12 @@ function delMvRow(id){
 }
 function openMoveModal(){
   if(!matMovesTableOk) return;
-  document.getElementById('mvDate').value = new Date().toISOString().slice(0,10);
+  /* 전표 날짜는 로컬(KST) 기준. toISOString()은 UTC라 한국 시간 00:00~09:00 사이에
+     '어제' 날짜가 기본값으로 들어간다 — 아침 일찍 입출고를 등록하면 하루 앞으로 찍힌다.
+     작업일보의 todayStr()과 같은 방식으로 맞췄다(2026-08-14). */
+  var _d = new Date();
+  document.getElementById('mvDate').value =
+    _d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
   ['mvDoc','mvPlace','mvTaker','mvNote'].forEach(function(k){ document.getElementById(k).value=''; });
   document.getElementById('mvKind').value='';
   document.getElementById('mvRows').innerHTML='';
