@@ -251,8 +251,10 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<!-- 엑셀/PDF 다운로드용(2026-09-14). 둘 다 서버 없이 브라우저에서 직접 파일을 만든다. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- 엑셀/PDF 다운로드용(2026-09-14). 둘 다 서버 없이 브라우저에서 직접 파일을 만든다.
+     엑셀은 SheetJS(xlsx) 무료판이 테두리·색 등 서식 저장을 지원하지 않아(Pro 전용) ExcelJS로
+     바꿈(2026-09-14, "PDF에 보이는 화면과 동일하게, 테두리선도" 요청) — 서식까지 그대로 저장됨. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
@@ -646,30 +648,128 @@ async function downloadPDF(){
     setDownloadMsg('❌ PDF 생성 실패: '+(e.message||e),'var(--err)');
   }
 }
-function downloadExcel(){
-  if(!lastPrintCtx) return;
-  if(!window.XLSX){ setDownloadMsg('❌ 엑셀 라이브러리를 불러오지 못했습니다 — 새로고침 후 다시 시도해주세요','var(--err)'); return; }
-  var head = lastPrintCtx.head;
-  var infoRows = [
-    ['검수일자', head.date||''], ['검수번호', head.doc||''], ['공급업체', head.supplier||''],
-    ['인수자', head.taker||''], ['검수자', head.inspector||''], ['자재보관장소', head.place||''],
-    ['비고', head.note||'']
-  ];
-  var itemHeader = ['품목','규격','단위','발주수량','인수수량','불합격수량','합격여부'];
-  var itemData = lastPrintCtx.itemRows.map(function(r){
-    var ordered = orderedOf(r.cat, r.spec);
-    var res = rowResult(r);
-    return [r.cat, r.spec||'', unitOfCat(r.cat), ordered===null?'':ordered, Number(r.accept)||0, Number(r.reject)||0, res.label];
-  });
-  var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(infoRows), '정보');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([itemHeader].concat(itemData)), '품목');
-  XLSX.writeFile(wb, '자재검수서_'+(head.doc||'문서')+'.xlsx');
-  setDownloadMsg('✓ 엑셀 다운로드됨','var(--ok)');
+/* ExcelJS 공용 헬퍼 — border/fill 색은 인쇄본(.doc-titlebox/.doc-info/.doc-body) 톤과 맞춘다. */
+var XL_INK='FF1A2332', XL_HEAD='FF1E3A5F', XL_INFOBD='FFC8D2DE', XL_INFOBG='FFF2F5F9', XL_BODYBD='FFDCE3EC';
+var XL_RESULT_BG={ok:'FFE8F5EC', warn:'FFFBF0E1', err:'FFFDEDEC', wait:'FFEDF1F5'};
+var XL_RESULT_FG={ok:'FF1B7A43', warn:'FFA05A18', err:'FFC0392B', wait:'FF4A6B8A'};
+function xlThin(color){ return {style:'thin', color:{argb:color}}; }
+function xlMedium(color){ return {style:'medium', color:{argb:color}}; }
+function xlBoxBorder(ws, r1, c1, r2, c2, side){
+  for(var c=c1;c<=c2;c++){ ws.getCell(r1,c).border=Object.assign({}, ws.getCell(r1,c).border, {top:side}); ws.getCell(r2,c).border=Object.assign({}, ws.getCell(r2,c).border, {bottom:side}); }
+  for(var r=r1;r<=r2;r++){ ws.getCell(r,c1).border=Object.assign({}, ws.getCell(r,c1).border, {left:side}); ws.getCell(r,c2).border=Object.assign({}, ws.getCell(r,c2).border, {right:side}); }
 }
-/* 검수서 조회 목록 전체를 한 장의 엑셀로 — 자재관리 이력·감사용(2026-09-14). */
-function downloadAllExcel(){
-  if(!window.XLSX){ alert('엑셀 라이브러리를 불러오지 못했습니다 — 새로고침 후 다시 시도해주세요'); return; }
+function xlAllBorders(ws, r1, c1, r2, c2, side){
+  for(var r=r1;r<=r2;r++) for(var c=c1;c<=c2;c++) ws.getCell(r,c).border={top:side,left:side,bottom:side,right:side};
+}
+function triggerBlobDownload(blob, filename){
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+/* 인쇄본(1페이지) 레이아웃을 그대로 옮긴다 — 제목박스/정보표/품목표/비고/서명란, 테두리 포함
+   (2026-09-14, "PDF에 보이는 화면과 동일하게, 테두리선도 같이" 요청). */
+async function downloadExcel(){
+  if(!lastPrintCtx) return;
+  if(!window.ExcelJS){ setDownloadMsg('❌ 엑셀 라이브러리를 불러오지 못했습니다 — 새로고침 후 다시 시도해주세요','var(--err)'); return; }
+  setDownloadMsg('엑셀 만드는 중...','var(--lbl)');
+  try{
+    var head = lastPrintCtx.head;
+    var wb = new ExcelJS.Workbook();
+    var ws = wb.addWorksheet('검수서', {pageSetup:{paperSize:9, orientation:'portrait', fitToPage:true}});
+    ws.columns = [{width:14},{width:16},{width:10},{width:12},{width:12},{width:12},{width:16}];
+
+    // 제목박스(A1:G3)
+    ws.mergeCells(1,1,3,7);
+    var t = ws.getCell(1,1);
+    t.value='자 재 검 수 서';
+    t.font={name:'맑은 고딕', size:20, bold:true, color:{argb:XL_INK}};
+    t.alignment={horizontal:'center', vertical:'middle'};
+    xlBoxBorder(ws, 1,1,3,7, xlMedium(XL_INK));
+
+    // 정보표 — 라벨(1열)+값(2:3열 병합) · 라벨(4열)+값(5:7열 병합), 3행
+    var infoPairs = [
+      ['검수일자', head.date||'-', '검수번호', head.doc||'-'],
+      ['공급업체', head.supplier||'-', '인수자', head.taker||'-'],
+      ['검수자', head.inspector||'-', '자재보관장소', head.place||'-']
+    ];
+    var r0 = 5;
+    infoPairs.forEach(function(p, i){
+      var r = r0+i;
+      ws.mergeCells(r,2,r,3); ws.mergeCells(r,5,r,7);
+      [[1,p[0]],[2,p[1]],[4,p[2]],[5,p[3]]].forEach(function(cc){
+        var cell = ws.getCell(r,cc[0]);
+        cell.value = cc[1];
+        var isLabel = (cc[0]===1||cc[0]===4);
+        cell.font = {name:'맑은 고딕', size:11, bold:isLabel, color:{argb:isLabel?'FF3C4A5C':XL_INK}};
+        cell.alignment = {horizontal:isLabel?'left':'left', vertical:'middle'};
+        if(isLabel) cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:XL_INFOBG}};
+      });
+    });
+    xlAllBorders(ws, r0,1, r0+2,7, xlThin(XL_INFOBD));
+
+    // 품목표
+    var ih = r0+4;
+    var itemHeader = ['품목 (작업분류)','규격','단위','발주 수량','인수 수량','불합격 수량','합격여부'];
+    itemHeader.forEach(function(h,i){
+      var cell = ws.getCell(ih, i+1);
+      cell.value=h;
+      cell.font={name:'맑은 고딕', size:10.5, bold:true, color:{argb:'FFFFFFFF'}};
+      cell.alignment={horizontal:'center', vertical:'middle'};
+      cell.fill={type:'pattern', pattern:'solid', fgColor:{argb:XL_HEAD}};
+    });
+    var itemRows = lastPrintCtx.itemRows;
+    itemRows.forEach(function(row, ri){
+      var r = ih+1+ri;
+      var ordered = orderedOf(row.cat, row.spec);
+      var res = rowResult(row);
+      var vals = [row.cat, row.spec||'-', unitOfCat(row.cat), ordered===null?'-':ordered, Number(row.accept)||0, Number(row.reject)||0, res.label];
+      vals.forEach(function(v,ci){
+        var cell = ws.getCell(r, ci+1);
+        cell.value = v;
+        cell.alignment = {horizontal: ci===0 ? 'left' : 'center', vertical:'middle'};
+        cell.font = {name:'맑은 고딕', size:10.5, color:{argb: ci===5 && Number(row.reject)>0 ? XL_RESULT_FG.err : XL_INK}, bold: ci===5 && Number(row.reject)>0};
+        if(ci===6){
+          cell.font = {name:'맑은 고딕', size:10.5, bold:true, color:{argb:XL_RESULT_FG[res.cls]}};
+          cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:XL_RESULT_BG[res.cls]}};
+        }
+      });
+    });
+    var ibEnd = ih+itemRows.length;
+    xlAllBorders(ws, ih,1, ibEnd,7, xlThin(XL_BODYBD));
+
+    // 비고
+    var nr = ibEnd+2;
+    ws.mergeCells(nr,2,nr,7);
+    ws.getCell(nr,1).value='비고';
+    ws.getCell(nr,1).font={name:'맑은 고딕', size:10.5, bold:true, color:{argb:'FF3C4A5C'}};
+    ws.getCell(nr,1).fill={type:'pattern', pattern:'solid', fgColor:{argb:XL_INFOBG}};
+    ws.getCell(nr,2).value = head.note||'-';
+    ws.getCell(nr,2).alignment = {horizontal:'left', vertical:'top', wrapText:true};
+    ws.getRow(nr).height = 30;
+    xlAllBorders(ws, nr,1, nr,7, xlThin(XL_INFOBD));
+
+    // 서명란
+    var sr = nr+2;
+    ws.mergeCells(sr,1,sr,3); ws.mergeCells(sr,5,sr,7);
+    ws.getCell(sr,1).value='검수자 : '+(head.inspector||'-')+'   (서명)';
+    ws.getCell(sr,5).value='인수자 : '+(head.taker||'-')+'   (서명)';
+    [1,5].forEach(function(c){ var cell=ws.getCell(sr,c); cell.font={name:'맑은 고딕', size:11, bold:true, color:{argb:XL_INK}}; cell.alignment={horizontal:'left', vertical:'middle'}; });
+    ws.getRow(sr).height = 26;
+    xlBoxBorder(ws, sr,1,sr,3, xlMedium(XL_INK));
+    xlBoxBorder(ws, sr,5,sr,7, xlMedium(XL_INK));
+
+    var buf = await wb.xlsx.writeBuffer();
+    triggerBlobDownload(new Blob([buf], {type:'application/octet-stream'}), '자재검수서_'+(head.doc||'문서')+'.xlsx');
+    setDownloadMsg('✓ 엑셀 다운로드됨','var(--ok)');
+  }catch(e){
+    console.error('엑셀 생성 실패', e);
+    setDownloadMsg('❌ 엑셀 생성 실패: '+(e.message||e),'var(--err)');
+  }
+}
+/* 검수서 조회 목록 전체를 한 장의 엑셀로 — 자재관리 이력·감사용(2026-09-14). 테두리 포함. */
+async function downloadAllExcel(){
+  if(!window.ExcelJS){ alert('엑셀 라이브러리를 불러오지 못했습니다 — 새로고침 후 다시 시도해주세요'); return; }
   var header = ['날짜','검수번호','공급업체','검수자','인수자','품목','규격','단위','인수수량','불합격수량','합격여부','비고'];
   var data = [];
   filteredInspectionGroups().forEach(function(g){
@@ -677,9 +777,22 @@ function downloadAllExcel(){
       data.push([g.date, g.doc_no, g.supplier||'', g.inspector||'', g.taker||'', m.cat, m.spec||'', m.unit||'', num(m.qty), num(m.reject_qty||0), m.result||'', m.note||'']);
     });
   });
-  var wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header].concat(data)), '검수서 전체');
-  XLSX.writeFile(wb, '자재검수서_전체_'+todayStr()+'.xlsx');
+  var wb = new ExcelJS.Workbook();
+  var ws = wb.addWorksheet('검수서 전체');
+  ws.columns = header.map(function(){ return {width:13}; });
+  header.forEach(function(h,i){
+    var cell = ws.getCell(1,i+1);
+    cell.value=h;
+    cell.font={name:'맑은 고딕', size:10.5, bold:true, color:{argb:'FFFFFFFF'}};
+    cell.alignment={horizontal:'center', vertical:'middle'};
+    cell.fill={type:'pattern', pattern:'solid', fgColor:{argb:XL_HEAD}};
+  });
+  data.forEach(function(row,ri){
+    row.forEach(function(v,ci){ ws.getCell(ri+2,ci+1).value=v; ws.getCell(ri+2,ci+1).alignment={horizontal:ci<5?'left':'center'}; });
+  });
+  if(data.length) xlAllBorders(ws, 1,1, data.length+1, header.length, xlThin(XL_BODYBD));
+  var buf = await wb.xlsx.writeBuffer();
+  triggerBlobDownload(new Blob([buf], {type:'application/octet-stream'}), '자재검수서_전체_'+todayStr()+'.xlsx');
 }
 
 /* ── 검수서 조회(자재관리와 연동 — doc_no별로 묶어서 검색·필터하고, 클릭하면 인쇄본으로) ──
