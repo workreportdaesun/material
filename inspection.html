@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1100, user-scalable=yes, maximum-scale=5"/>
+<title>자재검수서</title>
+<link rel="icon" type="image/png" href="https://workreportdaesun.github.io/report/app/icon-192.png"/>
+<!-- 자재관리와 같은 기준 — 현장관리자 이상. index.html과 동일한 게이트. -->
+<script src="/report/role-gate.js" data-require="manager" data-login="/report/app/login.html"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#F0F4F8; --card:#fff; --card-bd:#D1DCE8; --ink:#1A2332; --lbl:#4A6B8A; --field-bd:#C8D8E8; --head-bg:#DCE6F2;
+  --field-bg:#F7FAFC; --brand-1:#1E3A5F; --brand-2:#2E5F9E;
+  --ok:#1B7A43; --err:#C0392B; --warn:#A05A18;
+  --font-body:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-mono:"SFMono-Regular",Consolas,Menlo,monospace;
+}
+body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-height:100vh;}
+.wrap{width:100%; max-width:1100px; margin:0 auto; padding:24px 20px 60px;}
+.hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:0; padding:16px 20px; margin-bottom:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;}
+.hdr h1{font-size:19px; font-weight:800;}
+.hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
+.card{background:var(--card); border:1px solid var(--card-bd); border-radius:0; padding:16px 18px; margin-bottom:16px;}
+.card + .card{margin-top:0;}
+.grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:10px 12px;}
+.f{display:flex; flex-direction:column; gap:3px;}
+.f label{font-size:11px; font-weight:700; color:var(--lbl);}
+.f input, .f select{background:var(--field-bg); border:1px solid var(--field-bd); border-radius:0; height:26px; padding:0 6px; font-family:inherit; font-size:12px; color:var(--ink);}
+.f input:focus, .f select:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+.btn{border:none; border-radius:0; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:inherit;}
+.btn-ghost{background:var(--field-bg); color:var(--brand-2); border:1px solid var(--field-bd);}
+.btn-big{padding:8px 20px; font-size:13px; font-weight:800;}
+.btn:disabled{opacity:.5; cursor:default;}
+table.itbl{width:100%; border-collapse:separate; border-spacing:0; font-size:12px; border:1px solid var(--card-bd); background:#fff;}
+table.itbl th{background:var(--head-bg); height:25px; font-size:11.5px; font-weight:700; padding:0 6px; border-right:1px solid var(--card-bd); border-bottom:1px solid var(--card-bd); white-space:nowrap;}
+table.itbl td{padding:3px 4px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); text-align:center; vertical-align:middle;}
+table.itbl select, table.itbl input{width:100%; height:24px; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:0; padding:0 4px; font-family:inherit; font-size:12px; color:var(--ink); text-align:center;}
+table.itbl select:focus, table.itbl input:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+table.itbl input[type=text]{text-align:left;}
+td.ord{color:var(--lbl); font-variant-numeric:tabular-nums;}
+td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
+.badge{display:inline-block; padding:0 7px; font-size:11px; font-weight:700; line-height:18px;}
+.badge.ok{background:#E8F5EC; color:var(--ok);}
+.badge.warn{background:#FBF0E1; color:var(--warn);}
+.badge.err{background:#FDEDEC; color:var(--err);}
+.badge.wait{background:#EDF1F5; color:var(--lbl);}
+.actions{display:flex; justify-content:space-between; align-items:center; margin-top:4px;}
+.summary{font-size:12px; color:var(--lbl);}
+.note{font-size:11px; color:var(--lbl); line-height:1.6;}
+.msg{font-size:12px; min-height:16px; margin-top:8px;}
+
+/* 검수 사진 — 기존 사진대지 서식(2x2, doc-photo4/doc-cap2) 재사용 + 캡션(2026-09-14 확정) */
+.photo-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px; max-width:640px;}
+.photo-cell{position:relative; border:1px solid #DCE3EC;}
+.photo-cell .ph-box{aspect-ratio:0.813; background:var(--field-bg); display:flex; align-items:center; justify-content:center; overflow:hidden;}
+.photo-cell .ph-box img{width:100%; height:100%; object-fit:cover; display:block;}
+.photo-cell .ph-del{position:absolute; top:4px; right:4px; width:16px; height:16px; background:rgba(26,35,50,.55); color:#fff; font-size:10px; text-align:center; line-height:16px; cursor:pointer;}
+.cap2{display:grid; grid-template-columns:1fr 1fr; border-top:1px solid #DCE3EC;}
+.cap2 div{padding:5px 8px; border-right:1px solid #DCE3EC; font-size:10.5px;}
+.cap2 div:nth-child(2n){border-right:none;}
+.cap2 div:nth-child(3), .cap2 div:nth-child(4){border-top:1px solid #DCE3EC;}
+.cap2 .lbl{color:#8494A6; font-weight:700;}
+.cap2 .val{color:var(--ink); font-weight:700;}
+.cap2 .val.rej{color:var(--err);}
+
+/* ── 인쇄본(문서) — report/app/report-pdf.html과 같은 톤 ───────────────── */
+#printView{display:none;}
+.pdf-page{width:794px; margin:0 auto 22px; background:#fff; box-shadow:0 20px 50px rgba(0,0,0,0.15); padding:30px 34px; box-sizing:border-box;}
+.doc-titlebox{border:3px solid var(--ink); display:flex; align-items:center; justify-content:center; padding:16px 0; margin-bottom:16px;}
+.doc-titlebox span{font-size:25px; font-weight:800; color:var(--ink); letter-spacing:16px; text-indent:16px;}
+.doc-info{width:100%; border-collapse:collapse; font-size:12px; margin-bottom:14px; table-layout:fixed;}
+.doc-info th{background:#F2F5F9; border:1px solid #C8D2DE; padding:6px 10px; text-align:left; font-weight:700; color:#3C4A5C; width:110px; font-size:11.5px;}
+.doc-info td{border:1px solid #C8D2DE; padding:6px 10px; color:var(--ink);}
+.doc-body{width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:14px;}
+.doc-body th{background:var(--brand-1); color:#fff; padding:6px 5px; font-size:10.5px; font-weight:700;}
+.doc-body td{border:1px solid #DCE3EC; padding:6px 5px; text-align:center; color:var(--ink);}
+.doc-body td.al{text-align:left;}
+.doc-body tbody tr:nth-child(even){background:#FAFBFD;}
+.doc-note{width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:24px;}
+.doc-note th{background:#F2F5F9; border:1px solid #C8D2DE; padding:6px 10px; width:104px; text-align:left; font-weight:700; color:#3C4A5C; vertical-align:top;}
+.doc-note td{border:1px solid #C8D2DE; padding:8px 10px; color:var(--ink); line-height:1.65;}
+.doc-sign{display:flex; gap:16px; margin-top:auto;}
+.doc-sign > div{flex:1; border:1px solid var(--ink); padding:14px;}
+.doc-sign .t{font-size:11.5px; font-weight:800; color:var(--ink); margin-bottom:10px;}
+.doc-sign .row{display:flex; justify-content:space-between; font-size:11.5px; color:var(--lbl); margin-bottom:8px;}
+.doc-sign .row b{color:var(--ink); font-weight:700;}
+.doc-sign .sig{height:44px; border-bottom:1px solid #C8D2DE; display:flex; align-items:flex-end; font-size:10.5px; color:#8494A6;}
+.doc-photosec-head{background:var(--brand-2); color:#fff; font-size:12px; font-weight:800; padding:5px 12px;}
+.doc-photosec-head span{font-weight:600; opacity:.85; font-family:var(--font-mono); float:right;}
+.doc-photogrid4{display:grid; grid-template-columns:repeat(2,1fr); gap:2px; background:#DCE3EC; border:1px solid #DCE3EC; border-top:none;}
+.doc-photo4{background:#fff;}
+.doc-photo4 .ph{width:100%; aspect-ratio:0.813; object-fit:cover; background:var(--field-bg); display:block;}
+.pageno{font-size:10px; color:#8494A6; text-align:center; margin-top:14px;}
+.print-toolbar{max-width:900px; margin:0 auto 16px; display:flex; gap:8px; justify-content:flex-end;}
+@media print{
+  body{background:#fff;}
+  #formView, .print-toolbar{display:none !important;}
+  #printView{display:block !important;}
+  .pdf-page{width:210mm; box-shadow:none; margin:0; page-break-after:always;}
+  .pdf-page:last-child{page-break-after:auto;}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="formView">
+  <div class="hdr">
+    <div>
+      <h1>🔍 자재검수서</h1>
+      <div class="proj" id="hdrProject">S-OIL SHAHEEN Project 계장공사 3공구(PKG-1)</div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="btn btn-ghost" onclick="location.href='index.html'">← 자재관리로</button>
+    </div>
+  </div>
+
+  <div id="loadBanner"></div>
+
+  <!-- 공통 입력 -->
+  <div class="card">
+    <div class="grid4">
+      <div class="f"><label>검수일자</label><input type="date" id="inDate"></div>
+      <div class="f"><label>검수번호 / Packing NO.</label><input type="text" id="inDoc" placeholder="예: MI-2026-0914-01"></div>
+      <div class="f"><label>공급업체</label><input type="text" id="inSupplier" placeholder="공급업체명"></div>
+      <div class="f"><label>자재보관장소</label><input type="text" id="inPlace" placeholder="예: 3공구 자재야적장 A"></div>
+      <div class="f"><label>인수자</label><input type="text" id="inTaker" placeholder="인수자 이름"></div>
+      <div class="f"><label>검수자</label><input type="text" id="inInspector" placeholder="검수자 이름"></div>
+      <div class="f"><label>도급/사급</label>
+        <select id="inKind"><option value="">-</option><option value="도급">도급</option><option value="사급">사급</option></select>
+      </div>
+    </div>
+    <div class="f" style="margin-top:10px;"><label>비고</label><input type="text" id="inNote" placeholder="특이사항"></div>
+  </div>
+
+  <!-- 품목 표 -->
+  <div class="card">
+    <table class="itbl">
+      <tr>
+        <th style="width:19%; text-align:left;">품목 (작업분류)</th>
+        <th style="width:11%;">규격</th>
+        <th style="width:6%;">단위</th>
+        <th style="width:9%; color:var(--brand-2);">발주 수량</th>
+        <th style="width:9%; color:var(--brand-2);">인수 수량</th>
+        <th style="width:9%; color:var(--brand-2);">불합격 수량</th>
+        <th style="width:10%;">합격여부</th>
+        <th>비고</th>
+        <th style="width:36px;"></th>
+      </tr>
+      <tbody id="itemRows"></tbody>
+    </table>
+    <div style="margin-top:8px;">
+      <button type="button" class="btn btn-ghost" onclick="addRow()">＋ 행 추가</button>
+    </div>
+  </div>
+
+  <!-- 검수 사진 (사진대지) -->
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <div style="font-size:13px; font-weight:800;">📷 검수 사진 (사진대지)</div>
+      <div class="summary" id="photoCount">0장 첨부됨</div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+      <span style="font-size:11px; font-weight:700; color:var(--lbl);">연결 품목</span>
+      <select id="photoTagSel" style="height:26px; background:var(--field-bg); border:1px solid var(--field-bd); font-family:inherit; font-size:12px; padding:0 6px;">
+        <option value="">전체</option>
+      </select>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('photoFile').click()">📷 사진 추가</button>
+      <input type="file" id="photoFile" accept="image/*" multiple style="display:none;" onchange="onPhotoFiles(event)">
+      <span class="msg" id="photoMsg"></span>
+    </div>
+    <div class="photo-grid" id="photoGrid"></div>
+    <div class="note" style="margin-top:10px;">사진마다 검수번호·검수품목·수량·날짜가 자동으로 캡션으로 붙습니다(기존 사진대지 캡션 칸을 그대로 사용) — 연결 품목을 "전체"로 두면 검수품목은 "전체"로 저장됩니다.</div>
+  </div>
+
+  <div class="note" style="margin-bottom:10px;">발주 수량은 <b>⚙️ 항목·규격 설정</b>에 입력된 값을 참고용으로 보여줍니다. 저장하면 자재관리 입출고 대장(입고)에 <b>합격 수량(인수−불합격)</b>만큼 반영되어 잔여·미설치 수량에 자동으로 합산됩니다. 불합격 수량은 참고용으로 같이 저장됩니다.</div>
+
+  <div class="actions">
+    <div class="summary" id="rowSummary">품목 0건</div>
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="btn btn-ghost btn-big" onclick="showPrintPreview()">🖨 인쇄 미리보기</button>
+      <button type="button" class="btn btn-big" id="saveBtn" onclick="saveInspection()">저장</button>
+    </div>
+  </div>
+  <div class="msg" id="saveMsg"></div>
+
+  <!-- 최근 검수서 -->
+  <div class="card" style="margin-top:16px;">
+    <div style="font-size:13px; font-weight:800; margin-bottom:8px;">📋 최근 검수서</div>
+    <div id="recentList" style="font-size:12px; color:var(--lbl);">불러오는 중...</div>
+  </div>
+</div>
+
+<!-- ── 인쇄본 ─────────────────────────────────────────────────────── -->
+<div id="printView">
+  <div class="print-toolbar">
+    <button type="button" class="btn btn-ghost" onclick="hidePrintPreview()">← 편집으로</button>
+    <button type="button" class="btn" onclick="window.print()">🖨 인쇄 / PDF 저장</button>
+  </div>
+
+  <div class="pdf-page" id="printPage1" style="min-height:1123px; display:flex; flex-direction:column;">
+    <div class="doc-titlebox"><span>자재검수서</span></div>
+    <table class="doc-info">
+      <tr><th>검수일자</th><td id="pDate"></td><th>검수번호</th><td id="pDoc"></td></tr>
+      <tr><th>공급업체</th><td id="pSupplier"></td><th>인수자</th><td id="pTaker"></td></tr>
+      <tr><th>검수자</th><td id="pInspector"></td><th>자재보관장소</th><td id="pPlace"></td></tr>
+    </table>
+    <table class="doc-body">
+      <tr><th>품목 (작업분류)</th><th>규격</th><th>단위</th><th>발주 수량</th><th>인수 수량</th><th>불합격 수량</th><th>합격여부</th></tr>
+      <tbody id="pItems"></tbody>
+    </table>
+    <table class="doc-note"><tr><th>비고</th><td id="pNote"></td></tr></table>
+    <div class="doc-sign">
+      <div>
+        <div class="t">검수자</div>
+        <div class="row"><span>성명 : <b id="pInspectorSig">-</b></span><span>날짜 : <b id="pDateSig1">-</b></span></div>
+        <div class="sig">(서명)</div>
+      </div>
+      <div>
+        <div class="t">인수자</div>
+        <div class="row"><span>성명 : <b id="pTakerSig">-</b></span><span>날짜 : <b id="pDateSig2">-</b></span></div>
+        <div class="sig">(서명)</div>
+      </div>
+    </div>
+    <div class="pageno" id="pPageNo1">1 / 1</div>
+  </div>
+
+  <div class="pdf-page" id="printPage2" style="min-height:1123px; display:none; flex-direction:column;">
+    <div class="doc-photosec-head">검수 사진 <span>2페이지</span></div>
+    <div class="doc-photogrid4" id="pPhotoGrid"></div>
+    <div class="pageno" style="margin-top:auto;">2 / 2</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+document.getElementById('inDate').value = todayStr();
+
+var SUPABASE_URL=localStorage.getItem('site_supabase_url')||'https://feymoykefzfwucbrqoja.supabase.co';
+var SUPABASE_KEY=localStorage.getItem('site_supabase_key')||'sb_publishable_ANT6G7_ka3IPHRk_4vLtBg_7G9NWW7i';
+var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+
+function todayStr(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function num(v){ return (Math.round((Number(v)||0)*100)/100); }
+function safeStorageKey(filename){
+  return String(filename).replace(/[^\x00-\x7F]/g,'').replace(/_+/g,'_').replace(/_+(?=\.)/g,'').replace(/^_+/,'');
+}
+
+/* PostgREST 1000행 제한 대응 — index.html의 fetchAllRows와 동일 규칙. */
+async function fetchAllRows(table, columns, orderCols){
+  var PAGE=1000, from=0, out=[];
+  for(;;){
+    var q = sbClient.from(table).select(columns);
+    (orderCols||[]).forEach(function(c){ q = q.order(c, {ascending:true}); });
+    var res = await q.range(from, from+PAGE-1);
+    if(res.error) return {error:res.error, data:null};
+    var rows = res.data || [];
+    out = out.concat(rows);
+    if(rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return {error:null, data:out};
+}
+
+var matCats=[], specsByCat={}, itemUnit={}, materialQty={}, matMovesColumnsOk=true;
+var rows=[], photos=[];
+
+function unitOfCat(cat){ return itemUnit[cat] || 'EA'; }
+function orderedOf(cat, spec){
+  var key = spec ? (cat+'|'+spec) : cat;
+  var r = materialQty[key];
+  var v = r ? r.ordered : null;
+  return (v===null||v===undefined||v==='') ? null : Number(v);
+}
+function catOptions(sel){
+  return '<option value="">- 선택 -</option>' + matCats.map(function(c){
+    return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>';
+  }).join('');
+}
+function specOptions(cat, sel){
+  var specs=(specsByCat[cat]||[]);
+  return '<option value="">(규격 없음)</option>' + specs.map(function(s){
+    return '<option value="'+esc(s)+'"'+(sel===s?' selected':'')+'>'+esc(s)+'</option>';
+  }).join('');
+}
+
+async function loadSettings(){
+  if(!sbClient){ document.getElementById('loadBanner').innerHTML='<div class="note" style="color:var(--err);">Supabase 연결 실패</div>'; return; }
+  var settingsRes = await sbClient.from('app_settings').select('item_unit,cats_by_menu,specs_by_cat,material_qty').eq('id','global').single();
+  if(settingsRes.error){
+    settingsRes = await sbClient.from('app_settings').select('item_unit,cats_by_menu,specs_by_cat').eq('id','global').single();
+  }
+  var sd = settingsRes.data || {};
+  itemUnit = sd.item_unit || {};
+  specsByCat = sd.specs_by_cat || {};
+  materialQty = sd.material_qty || {};
+  var seen={}; matCats=[];
+  ((sd.cats_by_menu||{})['시공']||[]).forEach(function(c){ if(c && !seen[c]){ seen[c]=1; matCats.push(c); } });
+  Object.keys(specsByCat).forEach(function(c){ if(c && !seen[c]){ seen[c]=1; matCats.push(c); } });
+  Object.keys(materialQty).forEach(function(k){ var c=k.split('|')[0]; if(c && !seen[c]){ seen[c]=1; matCats.push(c); } });
+
+  var tagSel = document.getElementById('photoTagSel');
+  tagSel.innerHTML = '<option value="">전체</option>' + matCats.map(function(c){ return '<option value="'+esc(c)+'">'+esc(c)+'</option>'; }).join('');
+
+  if(!matCats.length){
+    document.getElementById('loadBanner').innerHTML = '<div class="note" style="color:var(--warn);">⚠️ 품목이 없습니다 — 자재관리의 ⚙️ 항목·규격 설정을 먼저 확인해주세요.</div>';
+  }
+  if(!rows.length) addRow();
+  renderRows();
+  loadRecent();
+}
+
+/* ── 품목 행 ────────────────────────────────────────────────────── */
+function addRow(){
+  rows.push({cat:'', spec:'', accept:'', reject:'', note:''});
+  renderRows();
+}
+function delRow(i){
+  rows.splice(i,1);
+  if(!rows.length) rows.push({cat:'', spec:'', accept:'', reject:'', note:''});
+  renderRows();
+}
+function rowResult(r){
+  var acc = Number(r.accept)||0, rej = Number(r.reject)||0;
+  if(acc<=0) return {label:'대기', cls:'wait'};
+  if(rej<=0) return {label:'합격', cls:'ok'};
+  if(rej>=acc) return {label:'불합격', cls:'err'};
+  return {label:'부분합격', cls:'warn'};
+}
+function onRowField(i, field, val){
+  rows[i][field] = val;
+  if(field==='cat'){ rows[i].spec=''; }
+  renderRows();
+}
+function renderRows(){
+  var tb = document.getElementById('itemRows');
+  tb.innerHTML = rows.map(function(r,i){
+    var unit = r.cat ? unitOfCat(r.cat) : '-';
+    var ordered = r.cat ? orderedOf(r.cat, r.spec) : null;
+    var res = rowResult(r);
+    return '<tr>'
+      + '<td><select onchange="onRowField('+i+',\'cat\',this.value)">'+catOptions(r.cat)+'</select></td>'
+      + '<td><select onchange="onRowField('+i+',\'spec\',this.value)">'+specOptions(r.cat, r.spec)+'</select></td>'
+      + '<td class="ord">'+esc(unit)+'</td>'
+      + '<td class="ord">'+(ordered===null?'-':num(ordered))+'</td>'
+      + '<td><input type="number" step="any" value="'+esc(r.accept)+'" oninput="onRowField('+i+',\'accept\',this.value)"></td>'
+      + '<td><input type="number" step="any" value="'+esc(r.reject)+'" oninput="onRowField('+i+',\'reject\',this.value)"></td>'
+      + '<td><span class="badge '+res.cls+'">'+res.label+'</span></td>'
+      + '<td><input type="text" value="'+esc(r.note)+'" oninput="onRowField('+i+',\'note\',this.value)"></td>'
+      + '<td class="del" onclick="delRow('+i+')">✕</td></tr>';
+  }).join('');
+  var withItem = rows.filter(function(r){ return r.cat; }).length;
+  document.getElementById('rowSummary').textContent = '품목 '+withItem+'건';
+}
+
+/* ── 검수 사진 ──────────────────────────────────────────────────── */
+async function onPhotoFiles(ev){
+  var files = Array.prototype.slice.call(ev.target.files||[]);
+  ev.target.value='';
+  if(!files.length) return;
+  if(!sbClient){ setPhotoMsg('❌ Supabase 연결 실패','var(--err)'); return; }
+  var tagCat = document.getElementById('photoTagSel').value;
+  var docNoKey = safeStorageKey(document.getElementById('inDoc').value.trim()||'nodoc');
+  setPhotoMsg('업로드 중...','var(--lbl)');
+  for(var i=0;i<files.length;i++){
+    var f = files[i];
+    var ext = (f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+    var path = 'material-inspection/'+todayStr()+'/'+docNoKey+'_'+Date.now()+'_'+i+'.'+ext;
+    try{
+      var up = await sbClient.storage.from('work-gallery').upload(path, f, {contentType:f.type||'image/jpeg', upsert:true});
+      if(up.error) throw new Error(up.error.message);
+      var url = sbClient.storage.from('work-gallery').getPublicUrl(path).data.publicUrl;
+      photos.push({url:url, path:path, cat:tagCat, spec:''});
+    }catch(e){
+      console.error('사진 업로드 실패', e);
+      setPhotoMsg('❌ 업로드 실패: '+(e.message||e),'var(--err)');
+    }
+  }
+  renderPhotos();
+  setPhotoMsg('✓ 업로드 완료','var(--ok)');
+}
+function setPhotoMsg(m,c){ var e=document.getElementById('photoMsg'); e.textContent=m||''; e.style.color=c||'var(--lbl)'; }
+async function delPhoto(i){
+  var p = photos[i];
+  if(!p) return;
+  photos.splice(i,1);
+  renderPhotos();
+  if(p.path && sbClient){ try{ await sbClient.storage.from('work-gallery').remove([p.path]); }catch(e){} }
+}
+/* 사진 캡션 4항목 — 기존 사진대지 캡션 칸(기기번호/작업구역/작업내용/날짜) 자리에
+   검수번호/검수품목/수량/날짜를 그대로 채운다(2026-09-14 확정, [[project_material_inspection_report_plan]]). */
+function photoQtyLabel(cat){
+  if(!cat){
+    var acc=0; rows.forEach(function(r){ acc += Number(r.accept)||0; });
+    return {text:num(acc)+' EA', rej:false};
+  }
+  var r = rows.filter(function(x){ return x.cat===cat; })[0];
+  if(!r) return {text:'-', rej:false};
+  var rej = Number(r.reject)||0;
+  if(rej>0) return {text:'불합격 '+num(rej)+' '+unitOfCat(cat), rej:true};
+  return {text:num(r.accept)+' '+unitOfCat(cat), rej:false};
+}
+function renderPhotos(){
+  var docNo = document.getElementById('inDoc').value.trim()||'-';
+  var date = document.getElementById('inDate').value||'-';
+  var wrap = document.getElementById('photoGrid');
+  wrap.innerHTML = photos.map(function(p,i){
+    var q = photoQtyLabel(p.cat);
+    return '<div class="photo-cell">'
+      + '<div class="ph-box"><img src="'+esc(p.url)+'"></div>'
+      + '<div class="ph-del" onclick="delPhoto('+i+')">✕</div>'
+      + '<div class="cap2">'
+      +   '<div><span class="lbl">검수번호 </span><span class="val">'+esc(docNo)+'</span></div>'
+      +   '<div><span class="lbl">검수품목 </span><span class="val">'+esc(p.cat||'전체')+'</span></div>'
+      +   '<div><span class="lbl">수량 </span><span class="val'+(q.rej?' rej':'')+'">'+esc(q.text)+'</span></div>'
+      +   '<div><span class="lbl">날짜 </span><span class="val">'+esc(date)+'</span></div>'
+      + '</div></div>';
+  }).join('');
+  document.getElementById('photoCount').textContent = photos.length+'장 첨부됨';
+}
+['inDoc','inDate'].forEach(function(id){
+  document.getElementById(id).addEventListener('input', renderPhotos);
+});
+
+/* ── 저장 ──────────────────────────────────────────────────────── */
+function setSaveMsg(m,c){ var e=document.getElementById('saveMsg'); e.textContent=m||''; e.style.color=c||'var(--lbl)'; }
+async function saveInspection(){
+  if(!sbClient) return;
+  var date = document.getElementById('inDate').value;
+  var doc = document.getElementById('inDoc').value.trim();
+  if(!date){ setSaveMsg('❌ 검수일자를 입력해주세요','var(--err)'); return; }
+  if(!doc){ setSaveMsg('❌ 검수번호를 입력해주세요','var(--err)'); return; }
+  var validRows = rows.filter(function(r){ return r.cat && (Number(r.accept)||0) > 0; });
+  if(!validRows.length){ setSaveMsg('❌ 인수 수량이 입력된 품목이 하나 이상 있어야 합니다','var(--err)'); return; }
+
+  var common = {
+    moved_on:date, move_type:'입고',
+    contract_kind:document.getElementById('inKind').value||null,
+    doc_no:doc,
+    place:document.getElementById('inPlace').value.trim()||null,
+    taker:document.getElementById('inTaker').value.trim()||null,
+    note:document.getElementById('inNote').value.trim()||null,
+    supplier:document.getElementById('inSupplier').value.trim()||null,
+    inspector:document.getElementById('inInspector').value.trim()||null,
+    created_by:(localStorage.getItem('member_name')||null)
+  };
+  var insertRows = validRows.map(function(r,idx){
+    var acc = Number(r.accept)||0, rej = Number(r.reject)||0;
+    var res = rowResult(r);
+    var row = Object.assign({}, common, {
+      cat:r.cat, spec:r.spec||'', qty:num(acc-rej), unit:unitOfCat(r.cat),
+      reject_qty:num(rej), result:res.label, note:(r.note||common.note||null)
+    });
+    if(idx===0) row.photo_urls = photos.map(function(p){ return {url:p.url, cat:p.cat||'', spec:p.spec||''}; });
+    return row;
+  });
+
+  var btn=document.getElementById('saveBtn');
+  btn.disabled=true; setSaveMsg('저장 중...','var(--lbl)');
+  try{
+    var res = await sbClient.from('material_moves').insert(insertRows);
+    if(res.error) throw new Error(res.error.message);
+    setSaveMsg('✓ 검수서가 저장되어 자재관리 입출고 대장(입고)에 반영되었습니다','var(--ok)');
+    matMovesColumnsOk = true;
+    showPrintPreview();
+    loadRecent();
+  }catch(e){
+    console.error('검수서 저장 실패', e);
+    var msg = (e.message||String(e));
+    if(/column .* does not exist/i.test(msg)){
+      matMovesColumnsOk = false;
+      setSaveMsg('❌ material_moves 테이블에 검수 관련 컬럼이 없습니다 — 아래 배너의 SQL을 Supabase에서 먼저 실행해주세요.','var(--err)');
+      renderLoadBanner();
+    } else {
+      setSaveMsg('❌ 저장 실패: '+msg,'var(--err)');
+    }
+  }finally{ btn.disabled=false; }
+}
+function renderLoadBanner(){
+  if(matMovesColumnsOk){ document.getElementById('loadBanner').innerHTML=''; return; }
+  document.getElementById('loadBanner').innerHTML =
+    '<div class="note" style="background:#FEF5E7; border:1px solid #F0C987; padding:12px 14px; margin-bottom:14px; color:#7E5109;">'
+    + '⚠️ <b>material_moves</b> 테이블에 검수 관련 컬럼이 없어 저장할 수 없습니다. Supabase SQL Editor에서 <b>SUPABASE_INSPECTION.sql</b>을 먼저 실행해주세요.</div>';
+}
+
+/* ── 인쇄 미리보기 ─────────────────────────────────────────────── */
+function showPrintPreview(){
+  buildPrintView(rows.filter(function(r){ return r.cat; }), {
+    date:document.getElementById('inDate').value,
+    doc:document.getElementById('inDoc').value.trim(),
+    supplier:document.getElementById('inSupplier').value.trim(),
+    taker:document.getElementById('inTaker').value.trim(),
+    inspector:document.getElementById('inInspector').value.trim(),
+    place:document.getElementById('inPlace').value.trim(),
+    note:document.getElementById('inNote').value.trim()
+  }, photos);
+  document.getElementById('formView').style.display='none';
+  document.getElementById('printView').style.display='block';
+}
+function hidePrintPreview(){
+  document.getElementById('printView').style.display='none';
+  document.getElementById('formView').style.display='block';
+}
+function buildPrintView(itemRows, head, photoList){
+  document.getElementById('pDate').textContent = head.date||'-';
+  document.getElementById('pDoc').textContent = head.doc||'-';
+  document.getElementById('pSupplier').textContent = head.supplier||'-';
+  document.getElementById('pTaker').textContent = head.taker||'-';
+  document.getElementById('pInspector').textContent = head.inspector||'-';
+  document.getElementById('pPlace').textContent = head.place||'-';
+  document.getElementById('pNote').textContent = head.note||'-';
+  document.getElementById('pInspectorSig').textContent = head.inspector||'-';
+  document.getElementById('pTakerSig').textContent = head.taker||'-';
+  document.getElementById('pDateSig1').textContent = head.date||'-';
+  document.getElementById('pDateSig2').textContent = head.date||'-';
+
+  document.getElementById('pItems').innerHTML = itemRows.map(function(r){
+    var ordered = orderedOf(r.cat, r.spec);
+    var res = rowResult(r);
+    var badgeColor = res.cls==='ok' ? '#1B7A43' : res.cls==='warn' ? '#A05A18' : res.cls==='err' ? '#C0392B' : '#4A6B8A';
+    var badgeBg = res.cls==='ok' ? '#E8F5EC' : res.cls==='warn' ? '#FBF0E1' : res.cls==='err' ? '#FDEDEC' : '#EDF1F5';
+    return '<tr>'
+      + '<td class="al">'+esc(r.cat)+'</td>'
+      + '<td>'+esc(r.spec||'-')+'</td>'
+      + '<td>'+esc(unitOfCat(r.cat))+'</td>'
+      + '<td>'+(ordered===null?'-':num(ordered))+'</td>'
+      + '<td>'+num(r.accept)+'</td>'
+      + '<td'+(Number(r.reject)>0?' style="color:#C0392B;font-weight:700;"':'')+'>'+num(r.reject)+'</td>'
+      + '<td><span style="display:inline-block;padding:1px 8px;font-size:10.5px;font-weight:700;background:'+badgeBg+';color:'+badgeColor+';">'+res.label+'</span></td>'
+      + '</tr>';
+  }).join('');
+
+  var hasPhotos = photoList && photoList.length;
+  document.getElementById('printPage2').style.display = hasPhotos ? 'flex' : 'none';
+  document.getElementById('pPageNo1').textContent = hasPhotos ? '1 / 2 — 검수 사진은 다음 페이지 참조' : '1 / 1';
+  if(hasPhotos){
+    document.getElementById('pPhotoGrid').innerHTML = photoList.map(function(p){
+      return '<div class="doc-photo4"><img class="ph" src="'+esc(p.url)+'"></div>';
+    }).join('');
+  }
+}
+
+/* ── 최근 검수서(자재관리와 연동 — doc_no별로 묶어서 보여주고, 클릭하면 인쇄본으로) ── */
+async function loadRecent(){
+  var el = document.getElementById('recentList');
+  if(!sbClient) return;
+  var res = await fetchAllRows('material_moves','moved_on,doc_no,cat,spec,unit,qty,reject_qty,result,supplier,inspector,taker,place,note,photo_urls',['moved_on','id']);
+  if(res.error){
+    if(/column .* does not exist/i.test(res.error.message||'')){ matMovesColumnsOk=false; renderLoadBanner(); }
+    el.textContent = '불러오기 실패';
+    return;
+  }
+  var bySets = {};
+  (res.data||[]).forEach(function(m){
+    if(!m.supplier && !m.inspector) return; // 검수서로 등록된 것만(빠른 입출고 등록과 구분)
+    var key = m.doc_no||'(번호없음)';
+    if(!bySets[key]) bySets[key] = {doc_no:key, date:m.moved_on, supplier:m.supplier, inspector:m.inspector, taker:m.taker, place:m.place, note:m.note, rows:[], photos:[]};
+    bySets[key].rows.push(m);
+    if(m.photo_urls && m.photo_urls.length) bySets[key].photos = m.photo_urls;
+  });
+  var list = Object.values(bySets).sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); }).slice(0,20);
+  if(!list.length){ el.textContent='등록된 검수서가 없습니다'; return; }
+  el.innerHTML = list.map(function(g,idx){
+    var worst = g.rows.some(function(r){ return r.result==='불합격'; }) ? {l:'불합격',c:'err'}
+      : g.rows.some(function(r){ return r.result==='부분합격'; }) ? {l:'부분합격',c:'warn'} : {l:'합격',c:'ok'};
+    return '<div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:'+(idx?'1px solid var(--card-bd)':'none')+';">'
+      + '<span>'+esc(g.date)+' · <b>'+esc(g.doc_no)+'</b> · '+esc(g.supplier||'-')+' · 품목 '+g.rows.length+'건 · <span class="badge '+worst.c+'">'+worst.l+'</span></span>'
+      + '<button type="button" class="btn btn-ghost" onclick="reprintRecent('+idx+')">🖨 다시 보기</button></div>';
+  }).join('');
+  window._recentGroups = list;
+}
+function reprintRecent(idx){
+  var g = window._recentGroups[idx];
+  if(!g) return;
+  var itemRows = g.rows.map(function(m){ return {cat:m.cat, spec:m.spec, accept:num(m.qty)+num(m.reject_qty||0), reject:num(m.reject_qty||0)}; });
+  buildPrintView(itemRows, {date:g.date, doc:g.doc_no, supplier:g.supplier, taker:g.taker, inspector:g.inspector, place:g.place, note:g.note}, g.photos||[]);
+  document.getElementById('formView').style.display='none';
+  document.getElementById('printView').style.display='block';
+}
+
+/* index.html 이력 모달의 "검수 다시 보기"에서 ?doc=검수번호 로 들어오면 바로 인쇄본을 연다
+   (2026-09-14, "자재관리와 연동" — [[project_material_inspection_report_plan]]). */
+async function loadAndPrintDoc(docNo){
+  if(!sbClient) return;
+  var res = await sbClient.from('material_moves').select('*').eq('doc_no', docNo).eq('move_type','입고');
+  if(res.error || !res.data || !res.data.length) return;
+  var ms = res.data;
+  var head = {date:ms[0].moved_on, doc:docNo, supplier:ms[0].supplier, taker:ms[0].taker, inspector:ms[0].inspector, place:ms[0].place, note:ms[0].note};
+  var itemRows = ms.map(function(m){ return {cat:m.cat, spec:m.spec, accept:num(m.qty)+num(m.reject_qty||0), reject:num(m.reject_qty||0)}; });
+  var docPhotos = [];
+  ms.forEach(function(m){ if(m.photo_urls && m.photo_urls.length) docPhotos = m.photo_urls; });
+  buildPrintView(itemRows, head, docPhotos);
+  document.getElementById('formView').style.display='none';
+  document.getElementById('printView').style.display='block';
+}
+
+addRow();
+loadSettings().then(function(){
+  var qs = new URLSearchParams(location.search);
+  var doc = qs.get('doc');
+  if(doc) loadAndPrintDoc(doc);
+});
+</script>
+
+<script>var _ag=document.createElement('script'); _ag.src='https://workreportdaesun.github.io/report/admin-gate.js'; document.head.appendChild(_ag);</script>
+<script>var _nf=document.createElement('script'); _nf.src='/report/nav-fab.js'; document.body.appendChild(_nf);</script>
+</body>
+</html>

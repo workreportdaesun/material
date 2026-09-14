@@ -210,6 +210,10 @@ html.embed #migBanner:empty{display:none;}
       <!-- 🔄 새로고침 버튼은 삭제(2026-08-12 사용자 요청). loadMaterialData()는 화면을 열 때
            자동으로 돌고, 작업일보 설정이 바뀌면 구독으로 다시 불러오므로 수동 버튼이 필요 없다. -->
       <button type="button" class="btn" onclick="openMoveModal()" id="btnAddMove">➕ 입출고 등록</button>
+      <!-- 정식 입고(공급업체 검수 포함)는 이 새 화면으로 유도한다(2026-09-14) — 입출고 등록의
+           "입고"는 빠른 보정용으로 그대로 남겨둔다. inspection.html은 저장 시 같은
+           material_moves(입고)에 줄을 추가하므로 이 표·이력에 자동으로 반영된다. -->
+      <button type="button" class="btn btn-refresh" onclick="location.href='inspection.html'" id="btnInspection">🔍 자재검수서</button>
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
       <!-- 자재 품목(=시공 작업분류)·규격은 material에 따로 저장소를 두지 않고 report의 app_settings를
            그대로 보고 있으므로, 편집 화면도 새로 만들지 않고 report의 ⚙️설정을 그대로 연다
@@ -973,11 +977,18 @@ function renderHist(){
   if(!matMovesTableOk){ body.innerHTML='<div class="empty">입출고 대장 테이블이 아직 없습니다</div>'; return; }
   if(!list.length){ body.innerHTML='<div class="empty">등록된 입출고 기록이 없습니다</div>'; return; }
   var TAG={'입고':'in','출고':'out','반품':'ret','조정':'adj'};
+  /* result가 있는 행 = 자재검수서(inspection.html)로 등록된 정식 입고. 뱃지를 눌러 그
+     검수서 전체(공급업체·검수자·사진 포함)를 다시 볼 수 있게 한다(2026-09-14, "자재관리와
+     연동" — [[project_material_inspection_report_plan]]). */
+  var RESULT_CLS={'합격':'in','부분합격':'adj','불합격':'ret'};
   body.innerHTML='<table class="hist-tbl"><tr>'
     +'<th style="width:92px">날짜</th><th style="width:56px">구분</th><th>규격</th><th style="width:72px">수량</th>'
     +'<th style="width:56px">도급/사급</th><th>전표번호</th><th>장소</th><th>수령자</th><th>비고</th>'
-    +'<th style="width:74px">등록자</th><th style="width:44px">삭제</th></tr>'
+    +'<th style="width:74px">등록자</th><th style="width:64px">검수</th><th style="width:44px">삭제</th></tr>'
     + list.map(function(m){
+      var resultCell = m.result
+        ? '<span class="mv-tag '+(RESULT_CLS[m.result]||'adj')+'" style="cursor:pointer;" title="검수서 다시 보기" onclick="openInspectionDoc(\''+esc(m.doc_no||'')+'\')">'+esc(m.result)+'</span>'
+        : '-';
       return '<tr>'
         +'<td>'+esc(m.moved_on)+'</td>'
         +'<td><span class="mv-tag '+(TAG[m.move_type]||'adj')+'">'+esc(m.move_type)+'</span></td>'
@@ -989,8 +1000,13 @@ function renderHist(){
         +'<td class="l">'+esc(m.taker||'-')+'</td>'
         +'<td class="l">'+esc(m.note||'-')+'</td>'
         +'<td>'+esc(m.created_by||'-')+'</td>'
+        +'<td>'+resultCell+'</td>'
         +'<td class="mv-del" onclick="delMove('+m.id+')">✕</td></tr>';
     }).join('') + '</table>';
+}
+function openInspectionDoc(docNo){
+  if(!docNo) return;
+  window.open('inspection.html?doc='+encodeURIComponent(docNo), '_blank');
 }
 async function delMove(id){
   if(!sbClient || !matMovesTableOk) return;
