@@ -667,6 +667,13 @@ function triggerBlobDownload(blob, filename){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
+function arrayBufferToBase64(buffer){
+  var binary = '', bytes = new Uint8Array(buffer), chunk = 0x8000;
+  for(var i=0; i<bytes.length; i+=chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+  }
+  return btoa(binary);
+}
 /* 인쇄본(1페이지) 레이아웃을 그대로 옮긴다 — 제목박스/정보표/품목표/비고/서명란, 테두리 포함
    (2026-09-14, "PDF에 보이는 화면과 동일하게, 테두리선도 같이" 요청). */
 async function downloadExcel(){
@@ -758,6 +765,51 @@ async function downloadExcel(){
     ws.getRow(sr).height = 26;
     xlBoxBorder(ws, sr,1,sr,3, xlMedium(XL_INK));
     xlBoxBorder(ws, sr,5,sr,7, xlMedium(XL_INK));
+
+    // 검수 사진 — PDF 2페이지와 같은 사진을 별도 시트에 그대로 넣는다(2026-09-14, "엑셀
+    // 다운로드에 사진파일도 같이" 요청). Supabase에 올라간 사진을 fetch로 받아 base64로
+    // 인코딩해서 엑셀 안에 직접 그림으로 심는다(외부 링크가 아니라 파일 자체에 포함됨).
+    var photos = lastPrintCtx.photoList || [];
+    if(photos.length){
+      setDownloadMsg('사진 넣는 중... (0/'+photos.length+')','var(--lbl)');
+      var ws2 = wb.addWorksheet('검수 사진');
+      ws2.columns = [1,2,3,4,5,6,7,8].map(function(){ return {width:11}; });
+      function photoQtyForXl(cat){
+        if(!cat){ var acc=0; itemRows.forEach(function(r){ acc+=Number(r.accept)||0; }); return {text:num(acc)+' EA', rej:false}; }
+        var r = itemRows.filter(function(x){ return x.cat===cat; })[0];
+        if(!r) return {text:'-', rej:false};
+        var rej = Number(r.reject)||0;
+        if(rej>0) return {text:'불합격 '+num(rej)+' '+unitOfCat(cat), rej:true};
+        return {text:num(r.accept)+' '+unitOfCat(cat), rej:false};
+      }
+      for(var pi=0; pi<photos.length; pi++){
+        setDownloadMsg('사진 넣는 중... ('+(pi+1)+'/'+photos.length+')','var(--lbl)');
+        var p = photos[pi];
+        var pairIdx = Math.floor(pi/2), colIdx = pi%2;
+        var rowStart = 1 + pairIdx*15;      // 사진(13행 분량)+캡션(1행)+여백(1행)
+        var colStart = 1 + colIdx*4;
+        try{
+          var resp = await fetch(p.url);
+          var buf2 = await resp.arrayBuffer();
+          var ct = resp.headers.get('content-type')||'';
+          var ext = /png/i.test(ct) ? 'png' : 'jpeg';
+          var b64 = arrayBufferToBase64(buf2);
+          var imgId = wb.addImage({base64:'data:image/'+ext+';base64,'+b64, extension:ext});
+          ws2.addImage(imgId, {tl:{col:colStart-1, row:rowStart-1}, ext:{width:200, height:246}});
+        }catch(e){
+          console.error('사진 임베드 실패', p.url, e);
+          ws2.getCell(rowStart, colStart).value = '⚠️ 사진을 불러오지 못했습니다';
+        }
+        var capRow = rowStart+13;
+        ws2.mergeCells(capRow, colStart, capRow, colStart+3);
+        var q = photoQtyForXl(p.cat);
+        var capCell = ws2.getCell(capRow, colStart);
+        capCell.value = '검수번호 '+(head.doc||'-')+'  |  검수품목 '+(p.cat||'전체')+'  |  수량 '+q.text+'  |  날짜 '+(head.date||'-');
+        capCell.font = {name:'맑은 고딕', size:9.5, bold:q.rej, color:{argb: q.rej?XL_RESULT_FG.err:XL_INK}};
+        capCell.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+        xlAllBorders(ws2, capRow, colStart, capRow, colStart+3, xlThin(XL_BODYBD));
+      }
+    }
 
     var buf = await wb.xlsx.writeBuffer();
     triggerBlobDownload(new Blob([buf], {type:'application/octet-stream'}), '자재검수서_'+(head.doc||'문서')+'.xlsx');
