@@ -211,6 +211,10 @@ html.embed #migBanner:empty{display:none;}
            자동으로 돌고, 작업일보 설정이 바뀌면 구독으로 다시 불러오므로 수동 버튼이 필요 없다. -->
       <button type="button" class="btn" onclick="openMoveModal()" id="btnAddMove">➕ 입출고 등록</button>
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
+      <!-- 자재 품목(=시공 작업분류)·규격은 material에 따로 저장소를 두지 않고 report의 app_settings를
+           그대로 보고 있으므로, 편집 화면도 새로 만들지 않고 report의 ⚙️설정을 그대로 연다
+           (2026-09-14, 사용자 요청 — "자재에서도 항목·규격 수정 설정창"). -->
+      <button type="button" class="btn btn-refresh" onclick="openMaterialCatSettings()" id="btnCatSettings">⚙️ 항목·규격 설정</button>
     </div>
   </div>
 
@@ -373,6 +377,13 @@ async function saveMatKind(idx, value){
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function num(v){ return (Math.round(v*100)/100); }
 
+/* 자재 품목·규격 편집 화면 — material은 저장소가 따로 없고 report의 app_settings(시공 작업분류·
+   specs_by_cat)를 그대로 보여주는 것뿐이라, 여기서 새 편집 UI를 만드는 대신 report의 ⚙️설정을
+   새 탭으로 열어준다(2026-09-14). role-gate.js가 같은 도메인 루트경로(/report/...)로 이미
+   report를 참조하고 있어 로그인 세션도 그대로 이어진다. */
+function openMaterialCatSettings(){
+  window.open(location.origin+'/report/app/index.html?open=material', '_blank');
+}
 function setSaveNote(msg, color){
   var el=document.getElementById('saveNote');
   el.textContent=msg||'';
@@ -800,7 +811,7 @@ function subscribeSettingsRealtime(){
       var k=structKeyOf(payload.new);
       if(k===lastStructKey){ renderCatTotals(); return; }
       lastStructKey=k;
-      setSaveNote('작업일보 설정이 바뀌어 표를 다시 불러왔습니다');
+      setSaveNote('⚙️ 설정이 업데이트되어 반영되었습니다');
       loadMaterialData();
     })
     .subscribe();
