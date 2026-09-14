@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1000"/>
+<title>자재 항목·규격 설정</title>
+<link rel="icon" type="image/png" href="https://workreportdaesun.github.io/report/app/icon-192.png"/>
+<!-- material의 "⚙️ 항목·규격 설정" 버튼이 이 화면을 큰 팝업 창으로 연다(2026-09-14).
+     report의 ⚙️설정 모달(폭 460px, 분류/규격/구역/단위/소속/계정이 한 줄로 쌓여 스크롤해야 하는
+     시트형)을 그대로 재사용하지 않고, "한눈에 보이게 크게"라는 요청에 맞춰 품목·규격만 뽑아
+     왼쪽(품목)·오른쪽(규격) 2단 레이아웃으로 새로 만들었다. 데이터는 report와 완전히 같은
+     Supabase app_settings 컬럼(cats_by_menu['시공']·specs_by_cat·item_unit)을 그대로 읽고 쓰므로
+     별도 저장소가 아니라 report·status·progress·shoot 전체와 항상 같은 값을 본다. -->
+<script src="/report/role-gate.js" data-require="manager" data-login="/report/app/login.html"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#F0F4F8; --card:#fff; --card-bd:#D1DCE8; --ink:#1A2332; --lbl:#4A6B8A; --field-bd:#C8D8E8; --field-bg:#F7FAFC;
+  --brand-1:#1E3A5F; --brand-2:#2E5F9E; --ok:#1B7A43; --err:#C0392B;
+  --font-body:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+html,body{height:100%;}
+body{background:var(--bg); color:var(--ink); font-family:var(--font-body); display:flex; flex-direction:column;}
+.hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); padding:14px 20px; color:#fff;
+  display:flex; justify-content:space-between; align-items:center; flex-shrink:0;}
+.hdr h1{font-size:17px; font-weight:800;}
+.hdr .sub{font-size:12px; opacity:.85; margin-top:2px;}
+.hdr .x{border:none; background:rgba(255,255,255,.18); color:#fff; width:30px; height:30px; border-radius:50%;
+  font-size:15px; cursor:pointer;}
+.panes{flex:1; min-height:0; display:flex; gap:16px; padding:16px 20px;}
+.pane{background:var(--card); border:1px solid var(--card-bd); display:flex; flex-direction:column; min-height:0;}
+.pane-items{width:320px; flex-shrink:0;}
+.pane-specs{flex:1; min-width:0;}
+.pane-hd{padding:10px 14px; border-bottom:1px solid var(--card-bd); background:var(--field-bg);
+  font-size:13px; font-weight:800; color:var(--brand-1); flex-shrink:0;}
+.pane-hd .cnt{font-weight:400; color:var(--lbl); margin-left:4px;}
+.pane-body{flex:1; overflow-y:auto; padding:6px;}
+.row{display:flex; align-items:center; gap:6px; padding:7px 8px; border-radius:6px; cursor:default;}
+.row:hover{background:var(--field-bg);}
+.row.sel{background:#E4EDF8;}
+.pane-items .row{cursor:pointer;}
+.row .mv{border:none; background:none; color:var(--lbl); cursor:pointer; font-size:11px; padding:0 2px; flex-shrink:0;}
+.row .mv:disabled{opacity:.25; cursor:default;}
+.row .name{flex:1; min-width:0; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.row .unit{font-size:11px; color:var(--lbl); background:var(--field-bg); border:1px solid var(--field-bd);
+  border-radius:4px; padding:1px 6px; flex-shrink:0;}
+.row .ic{border:none; background:none; cursor:pointer; font-size:13px; padding:2px 4px; flex-shrink:0; opacity:.6;}
+.row .ic:hover{opacity:1;}
+.empty-hint{padding:24px 16px; text-align:center; color:var(--lbl); font-size:13px; line-height:1.6;}
+.add-row{display:flex; gap:6px; padding:10px; border-top:1px solid var(--card-bd); flex-shrink:0;}
+.add-row input{flex:1; min-width:0; border:1px solid var(--field-bd); background:var(--field-bg); color:var(--ink);
+  font-size:13px; padding:7px 9px; font-family:inherit;}
+.add-row input:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+.add-row select{border:1px solid var(--field-bd); background:var(--field-bg); color:var(--ink); font-size:13px;
+  padding:7px 6px; font-family:inherit; width:78px; flex-shrink:0;}
+.add-row button{border:none; background:var(--brand-2); color:#fff; font-size:13px; font-weight:700; padding:7px 14px;
+  cursor:pointer; flex-shrink:0;}
+.add-row button:hover{background:var(--brand-1);}
+.ft{padding:9px 20px; border-top:1px solid var(--card-bd); background:var(--card); flex-shrink:0;
+  display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--lbl);}
+.ft .note.ok{color:var(--ok);}
+.ft .note.err{color:var(--err);}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div>
+    <h1>⚙️ 자재 항목·규격 설정</h1>
+    <div class="sub">여기서 바꾸면 작업일보·자재관리·공정관리·인원현황에 모두 같이 반영됩니다</div>
+  </div>
+  <button type="button" class="x" onclick="window.close()" title="닫기">✕</button>
+</div>
+
+<div class="panes">
+  <div class="pane pane-items">
+    <div class="pane-hd">품목 (작업분류)<span class="cnt" id="itemCount"></span></div>
+    <div class="pane-body" id="itemBody"></div>
+    <div class="add-row">
+      <input type="text" id="newItemInput" placeholder="새 품목 이름" onkeydown="if(event.key==='Enter'){event.preventDefault();addOrSaveItem();}"/>
+      <input type="text" id="newItemUnit" list="unitList" placeholder="단위" value="EA" style="width:70px;"/>
+      <button type="button" id="itemSaveBtn" onclick="addOrSaveItem()">추가</button>
+    </div>
+    <datalist id="unitList"></datalist>
+  </div>
+  <div class="pane pane-specs">
+    <div class="pane-hd" id="specHd">규격</div>
+    <div class="pane-body" id="specBody"></div>
+    <div class="add-row" id="specAddRow" style="display:none;">
+      <input type="text" id="newSpecInput" placeholder="새 규격 값" onkeydown="if(event.key==='Enter'){event.preventDefault();addOrSaveSpec();}"/>
+      <button type="button" id="specSaveBtn" onclick="addOrSaveSpec()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="ft">
+  <span id="ftNote" class="note"></span>
+  <span>Esc 또는 ✕로 닫으면 자재관리 화면이 바로 새 내용을 보여줍니다</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+var SUPABASE_URL=localStorage.getItem('site_supabase_url')||'https://feymoykefzfwucbrqoja.supabase.co';
+var SUPABASE_KEY=localStorage.getItem('site_supabase_key')||'sb_publishable_ANT6G7_ka3IPHRk_4vLtBg_7G9NWW7i';
+var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+
+/* 화면엔 시공 품목만 보이지만, 실제 컬럼은 전 공종이 한 객체에 같이 들어있다(cats_by_menu에
+   시공/품질/안전 등, item_unit·specs_by_cat은 품목명으로 공용 키) — 그래서 반드시 전체를
+   받아 메모리에 쥐고 있다가 '시공' 배열만 바꾼 뒤 통째로 다시 써야 다른 공종 값을 안 지운다. */
+var catsByMenu={}, itemUnit={}, specsByCat={}, unitOptions=[];
+var selectedCat=null, editingItemIdx=-1, editingSpecIdx=-1;
+var lastStructKey='';
+
+function structKeyOf(o){
+  return JSON.stringify([o.cats_by_menu||{}, o.specs_by_cat||{}, o.item_unit||{}]);
+}
+function sikongList(){ return catsByMenu['시공'] || (catsByMenu['시공']=[]); }
+
+function setNote(msg, cls){
+  var el=document.getElementById('ftNote');
+  el.textContent=msg||''; el.className='note'+(cls?' '+cls:'');
+}
+
+async function loadSettings(){
+  if(!sbClient){ setNote('Supabase 연결 안 됨','err'); return; }
+  var res=await sbClient.from('app_settings').select('cats_by_menu,specs_by_cat,item_unit,unit_options').eq('id','global').single();
+  if(res.error || !res.data){ setNote('불러오기 실패: '+(res.error&&res.error.message||''),'err'); return; }
+  catsByMenu = res.data.cats_by_menu || {};
+  specsByCat = res.data.specs_by_cat || {};
+  itemUnit = res.data.item_unit || {};
+  unitOptions = res.data.unit_options || [];
+  lastStructKey = structKeyOf(res.data);
+  document.getElementById('unitList').innerHTML = unitOptions.map(function(u){ return '<option value="'+u.replace(/"/g,'&quot;')+'">'; }).join('');
+  renderItems();
+  if(selectedCat && sikongList().indexOf(selectedCat)===-1) selectedCat=null;
+  renderSpecs();
+}
+
+/* 운영자만 실제로 더하고/고치고/지울 수 있다 — report의 ⚙️설정과 같은 기준(2026-08-09 확정).
+   현장관리자는 material 자체를 볼 수 있는 등급(manager)이라 이 창도 열리지만, 여기서는
+   목록만 보고 편집은 못 한다. */
+var isAdmin=false;
+function applyAdminGate(){
+  isAdmin = (typeof wrRoleAtLeast==='function') ? wrRoleAtLeast('admin') : false;
+  document.querySelectorAll('.add-row').forEach(function(el){ el.style.display = isAdmin ? '' : 'none'; });
+  if(!isAdmin) setNote('보기 전용 — 품목·규격 추가/수정/삭제는 운영자만 할 수 있습니다');
+}
+
+function renderItems(){
+  var list=sikongList();
+  document.getElementById('itemCount').textContent='('+list.length+')';
+  var body=document.getElementById('itemBody');
+  if(!list.length){ body.innerHTML='<div class="empty-hint">등록된 품목이 없습니다</div>'; return; }
+  body.innerHTML=list.map(function(cat,i){
+    var unit=itemUnit[cat]||'EA';
+    return '<div class="row'+(cat===selectedCat?' sel':'')+'" onclick="selectItem('+i+')">'
+      +'<button type="button" class="mv" onclick="event.stopPropagation();moveItem('+i+',-1)" '+(i===0?'disabled':'')+'>▲</button>'
+      +'<button type="button" class="mv" onclick="event.stopPropagation();moveItem('+i+',1)" '+(i===list.length-1?'disabled':'')+'>▼</button>'
+      +'<span class="name">'+esc(cat)+'</span>'
+      +'<span class="unit">'+esc(unit)+'</span>'
+      +'<button type="button" class="ic" onclick="event.stopPropagation();editItem('+i+')" title="수정">✏️</button>'
+      +'<button type="button" class="ic" onclick="event.stopPropagation();removeItem('+i+')" title="삭제">✕</button>'
+      +'</div>';
+  }).join('');
+}
+function selectItem(i){
+  selectedCat = sikongList()[i];
+  editingSpecIdx=-1;
+  document.getElementById('newSpecInput').value='';
+  document.getElementById('specSaveBtn').textContent='추가';
+  renderItems();
+  renderSpecs();
+}
+function editItem(i){
+  var list=sikongList();
+  editingItemIdx=i;
+  document.getElementById('newItemInput').value=list[i];
+  document.getElementById('newItemUnit').value=itemUnit[list[i]]||'EA';
+  document.getElementById('newItemInput').focus();
+  document.getElementById('itemSaveBtn').textContent='저장';
+}
+async function addOrSaveItem(){
+  if(!isAdmin) return;
+  var nameInp=document.getElementById('newItemInput'), unitInp=document.getElementById('newItemUnit');
+  var v=nameInp.value.trim(), unit=unitInp.value.trim()||'EA';
+  if(!v) return;
+  var list=sikongList();
+  if(editingItemIdx>=0){
+    var old=list[editingItemIdx];
+    if(list.indexOf(v)!==-1 && old!==v) return;
+    if(old!==v){
+      delete itemUnit[old];
+      // 이름이 바뀐 규격 목록도 새 이름으로 그대로 넘겨준다(report엔 없는 보완 — 2026-09-14,
+      // 이름만 바뀐 규격이 옛 이름 밑에 남아 안 보이게 되는 걸 막는다).
+      if(specsByCat[old]){ specsByCat[v]=specsByCat[old]; delete specsByCat[old]; }
+      if(selectedCat===old) selectedCat=v;
+    }
+    list[editingItemIdx]=v;
+    editingItemIdx=-1;
+    document.getElementById('itemSaveBtn').textContent='추가';
+  }else{
+    if(list.indexOf(v)!==-1) return;
+    list.push(v);
+  }
+  itemUnit[v]=unit;
+  nameInp.value=''; unitInp.value='EA';
+  renderItems(); renderSpecs();
+  await pushSettingsToSupabase();
+}
+function removeItem(i){
+  if(!isAdmin) return;
+  var list=sikongList();
+  if(list.length<=1){ setNote('품목은 최소 1개가 있어야 합니다','err'); return; }
+  var cat=list[i];
+  if(!confirm('"'+cat+'" 품목을 삭제할까요? 이 품목의 규격 목록도 함께 사라집니다.')) return;
+  list.splice(i,1);
+  delete itemUnit[cat];
+  delete specsByCat[cat];
+  if(selectedCat===cat) selectedCat=null;
+  editingItemIdx=-1;
+  document.getElementById('newItemInput').value='';
+  document.getElementById('itemSaveBtn').textContent='추가';
+  renderItems(); renderSpecs();
+  pushSettingsToSupabase();
+}
+async function moveItem(i,dir){
+  if(!isAdmin) return;
+  var list=sikongList();
+  var j=i+dir;
+  if(j<0||j>=list.length) return;
+  var t=list[i]; list[i]=list[j]; list[j]=t;
+  renderItems();
+  await pushSettingsToSupabase();
+}
+
+function renderSpecs(){
+  var hd=document.getElementById('specHd'), body=document.getElementById('specBody'), addRow=document.getElementById('specAddRow');
+  if(!selectedCat){
+    hd.textContent='규격';
+    body.innerHTML='<div class="empty-hint">왼쪽에서 품목을 먼저 선택하세요</div>';
+    addRow.style.display='none';
+    return;
+  }
+  var specs=specsByCat[selectedCat]||[];
+  hd.innerHTML=esc(selectedCat)+' 규격<span class="cnt">('+specs.length+')</span>';
+  addRow.style.display = isAdmin ? '' : 'none';
+  if(!specs.length){ body.innerHTML='<div class="empty-hint">등록된 규격이 없습니다 — 규격 없이도 자재관리에서 바로 쓸 수 있습니다</div>'; return; }
+  body.innerHTML=specs.map(function(s,i){
+    return '<div class="row">'
+      +'<button type="button" class="mv" onclick="moveSpec('+i+',-1)" '+(i===0?'disabled':'')+'>▲</button>'
+      +'<button type="button" class="mv" onclick="moveSpec('+i+',1)" '+(i===specs.length-1?'disabled':'')+'>▼</button>'
+      +'<span class="name">'+esc(s)+'</span>'
+      +'<button type="button" class="ic" onclick="editSpec('+i+')" title="수정">✏️</button>'
+      +'<button type="button" class="ic" onclick="removeSpec('+i+')" title="삭제">✕</button>'
+      +'</div>';
+  }).join('');
+}
+function editSpec(i){
+  editingSpecIdx=i;
+  document.getElementById('newSpecInput').value=(specsByCat[selectedCat]||[])[i];
+  document.getElementById('newSpecInput').focus();
+  document.getElementById('specSaveBtn').textContent='저장';
+}
+async function addOrSaveSpec(){
+  if(!isAdmin || !selectedCat) return;
+  var inp=document.getElementById('newSpecInput');
+  var v=inp.value.trim();
+  if(!v) return;
+  var specs=specsByCat[selectedCat]||(specsByCat[selectedCat]=[]);
+  if(editingSpecIdx>=0){
+    if(specs.indexOf(v)!==-1 && specs[editingSpecIdx]!==v) return;
+    specs[editingSpecIdx]=v;
+    editingSpecIdx=-1;
+    document.getElementById('specSaveBtn').textContent='추가';
+  }else{
+    if(specs.indexOf(v)!==-1) return;
+    specs.push(v);
+  }
+  inp.value='';
+  renderSpecs();
+  await pushSettingsToSupabase();
+}
+function removeSpec(i){
+  if(!isAdmin || !selectedCat) return;
+  specsByCat[selectedCat].splice(i,1);
+  editingSpecIdx=-1;
+  document.getElementById('newSpecInput').value='';
+  document.getElementById('specSaveBtn').textContent='추가';
+  renderSpecs();
+  pushSettingsToSupabase();
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+/* report/app/index.html의 pushSettingsToSupabase와 같은 방식 — app_settings에 아직 없는 컬럼이
+   섞여 있으면 upsert 전체가 실패하므로, 에러가 가리키는 컬럼만 빼고 재시도한다. cats_by_menu는
+   시공 외 다른 공종 배열도 같이 들어있는 전체 객체를 그대로 보내야 그쪽을 안 지운다. */
+async function pushSettingsToSupabase(){
+  if(!sbClient) return false;
+  var payload={ id:'global', cats_by_menu:catsByMenu, specs_by_cat:specsByCat, item_unit:itemUnit, updated_at:new Date().toISOString() };
+  for(var attempt=0; attempt<5; attempt++){
+    try{
+      var res=await sbClient.from('app_settings').upsert(payload);
+      if(!res.error){ setNote('✓ 저장됨 ('+new Date().toLocaleTimeString('ko-KR')+')','ok'); lastStructKey=structKeyOf(payload); return true; }
+      var m=/Could not find the '([^']+)' column/.exec(res.error.message||'');
+      if(m && Object.prototype.hasOwnProperty.call(payload,m[1])){ delete payload[m[1]]; continue; }
+      setNote('❌ 저장 실패: '+res.error.message,'err'); return false;
+    }catch(e){ setNote('❌ 저장 실패: '+(e.message||e),'err'); return false; }
+  }
+  return false;
+}
+
+function subscribeRealtime(){
+  if(!sbClient || !sbClient.channel) return;
+  sbClient.channel('app_settings_changes_material_settings')
+    .on('postgres_changes',{event:'*',schema:'public',table:'app_settings',filter:'id=eq.global'},function(payload){
+      if(!payload.new) return;
+      var k=structKeyOf(payload.new);
+      if(k===lastStructKey) return;   // 방금 내가 저장한 것 그대로 돌아온 이벤트
+      catsByMenu=payload.new.cats_by_menu||catsByMenu;
+      specsByCat=payload.new.specs_by_cat||specsByCat;
+      itemUnit=payload.new.item_unit||itemUnit;
+      lastStructKey=k;
+      if(selectedCat && sikongList().indexOf(selectedCat)===-1) selectedCat=null;
+      renderItems(); renderSpecs();
+      setNote('다른 화면에서 바뀐 내용을 반영했습니다','ok');
+    })
+    .subscribe();
+}
+
+document.addEventListener('keydown', function(e){ if(e.key==='Escape') window.close(); });
+
+(window.WR_ROLE_READY || Promise.resolve()).then(function(){
+  applyAdminGate();
+  loadSettings();
+  subscribeRealtime();
+});
+</script>
+</body>
+</html>

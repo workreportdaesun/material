@@ -377,20 +377,18 @@ async function saveMatKind(idx, value){
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function num(v){ return (Math.round(v*100)/100); }
 
-/* 자재 품목·규격 편집 화면 — material은 저장소가 따로 없고 report의 app_settings(시공 작업분류·
-   specs_by_cat)를 그대로 보여주는 것뿐이라, 여기서 새 편집 UI를 만드는 대신 report의 ⚙️설정을
-   재사용한다. 새 탭 대신 작은 팝업 창으로 띄운다(2026-09-14, 사용자 요청 — "PC에서 많이 쓰니까
-   별도 창으로"). report의 설정 모달은 화면 전체를 덮는 어두운 오버레이 위에 폭 460px 패널이라,
-   팝업창 크기를 그쯤으로 맞추면 뒤의 report 헤더·탭 없이 설정 패널만 뜬 것처럼 보인다 — 자재
-   표를 계속 보면서 옆에 띄워두고 편집할 수 있다. 이름을 고정해둬서 버튼을 다시 눌러도 창이
-   중복되지 않고 기존 팝업에 포커스만 간다. 모바일은 window.open의 크기 옵션을 대부분 무시해서
-   그냥 새 탭으로 열리므로(role-gate.js가 material 자체는 manager 이상만 허용) 문제없다. */
+/* 자재 품목·규격 편집 화면 — report의 좁은(폭 460px) ⚙️설정 시트를 그대로 재사용했다가,
+   "한눈에 보이도록 크게"라는 요청으로 material 자체에 품목·규격 전용 2단(왼쪽 품목/오른쪽 규격)
+   큰 화면(settings.html)을 새로 만들었다(2026-09-14). 데이터는 report와 완전히 같은 Supabase
+   app_settings 컬럼을 그대로 읽고 쓰므로 값은 항상 report·status·progress·shoot과 같다.
+   PC에서 자재 표를 계속 보면서 옆에 띄워두고 쓰도록 새 탭 대신 큰 팝업 창으로 연다. 이름을
+   고정해둬서 버튼을 다시 눌러도 창이 중복되지 않고 기존 팝업에 포커스만 간다. */
 function openMaterialCatSettings(){
-  var w=520, h=780;
+  var w=Math.min(1040, screen.width-60), h=Math.min(760, screen.height-80);
   var left=Math.max(0, Math.round((screen.width - w)/2));
   var top=Math.max(0, Math.round((screen.height - h)/2));
   var feat='width='+w+',height='+h+',left='+left+',top='+top+',resizable=yes,scrollbars=yes,menubar=no,toolbar=no,location=no,status=no';
-  var win=window.open(location.origin+'/report/app/index.html?open=material', 'materialCatSettings', feat);
+  var win=window.open(location.origin+'/material/settings.html', 'materialCatSettings', feat);
   if(win) win.focus();
 }
 function setSaveNote(msg, color){
