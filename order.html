@@ -23,10 +23,10 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
 .card{background:var(--card); border:1px solid var(--card-bd); border-radius:0; padding:16px 18px; margin-bottom:16px;}
 .grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:10px 12px;}
-/* 아래 청구 품목표(자재분류7·품명12·규격12·재질22·단위6·금회청구량8·계약단가9·입고요청일11·비고11%)와
-   같은 비율의 9열 그리드 — 청구서번호·현장연락처를 품목표의 "금회청구량" 열과 같은 위치에 오도록
-   맞춘다(2026-09-14, 사용자 요청). */
-.hdrgrid{display:grid; grid-template-columns:7fr 12fr 12fr 22fr 6fr 8fr 9fr 11fr 11fr; gap:10px 12px;}
+/* 아래 청구 품목표(자재분류6·코드8·품명10·규격10·재질20·단위5·금회청구량7·계약단가8·입고요청일11·비고11%)와
+   같은 비율의 10열 그리드 — 청구서번호·현장연락처를 품목표의 "금회청구량" 열과 같은 위치에 오도록
+   맞춘다(2026-09-14, 사용자 요청. "코드" 열 추가로 폭 갱신). */
+.hdrgrid{display:grid; grid-template-columns:6fr 8fr 10fr 10fr 20fr 5fr 7fr 8fr 11fr 11fr; gap:10px 12px;}
 .f{display:flex; flex-direction:column; gap:3px;}
 .f label{font-size:11px; font-weight:700; color:var(--lbl);}
 .f input, .f select, .f textarea{background:var(--field-bg); border:1px solid var(--field-bd); border-radius:0; height:26px; padding:0 6px; font-family:inherit; font-size:12px; color:var(--ink);}
@@ -99,16 +99,16 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
   <!-- 청구서 기본정보 -->
   <div class="card">
     <div class="hdrgrid">
-      <div class="f" style="grid-column:1/6;"><label>현장명</label><input type="text" id="inSite" placeholder="현장명" onchange="saveLastValues()"></div>
-      <div class="f" style="grid-column:6/10;">
+      <div class="f" style="grid-column:1/7;"><label>현장명</label><input type="text" id="inSite" placeholder="현장명" onchange="saveLastValues()"></div>
+      <div class="f" style="grid-column:7/11;">
         <label>청구서번호 <span style="font-weight:400; color:var(--lbl);">(항목 입력 시 자동생성)</span></label>
         <div style="display:flex; gap:6px;">
           <input type="text" id="inItemCode" placeholder="예: CONDUIT" style="width:38%;" onchange="onItemCodeChange()">
           <input type="text" id="inReqNo" readonly placeholder="항목을 입력하면 자동으로 채워집니다" style="flex:1; background:var(--field-bg); color:var(--lbl);">
         </div>
       </div>
-      <div class="f" style="grid-column:1/6;"><label>수령자</label><input type="text" id="inRecipient" placeholder="수령자 이름·직급" onchange="saveLastValues()"></div>
-      <div class="f" style="grid-column:6/10;"><label>현장연락처</label><input type="text" id="inContact" placeholder="010-0000-0000" onchange="saveLastValues()"></div>
+      <div class="f" style="grid-column:1/7;"><label>수령자</label><input type="text" id="inRecipient" placeholder="수령자 이름·직급" onchange="saveLastValues()"></div>
+      <div class="f" style="grid-column:7/11;"><label>현장연락처</label><input type="text" id="inContact" placeholder="010-0000-0000" onchange="saveLastValues()"></div>
     </div>
     <div class="f" style="margin-top:10px;"><label>화물 &amp; 주소</label><input type="text" id="inAddr" placeholder="배송받을 주소" onchange="saveLastValues()"></div>
   </div>
@@ -134,13 +134,14 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
   <div class="card">
     <table class="itbl">
       <tr>
-        <th style="width:7%;">자재분류</th>
-        <th style="width:12%;">품명</th>
-        <th style="width:12%;">규격</th>
-        <th style="width:22%;">재질 및 기타사양</th>
-        <th style="width:6%;">단위</th>
-        <th style="width:8%;">금회청구량</th>
-        <th style="width:9%;">계약단가</th>
+        <th style="width:6%;">자재분류</th>
+        <th style="width:8%;">코드<span style="display:block; font-weight:400; font-size:9.5px; color:var(--lbl);">(내부 관리 품목 연결)</span></th>
+        <th style="width:10%;">품명</th>
+        <th style="width:10%;">규격</th>
+        <th style="width:20%;">재질 및 기타사양</th>
+        <th style="width:5%;">단위</th>
+        <th style="width:7%;">금회청구량</th>
+        <th style="width:8%;">계약단가</th>
         <th style="width:11%;">입고요청일</th>
         <th style="width:11%;">비고(승인업체)</th>
         <th style="width:36px;"></th>
@@ -241,7 +242,21 @@ async function fetchAllRows(table, columns, orderCols, desc){
   return {error:null, data:out};
 }
 
-var rows=[], ordersTableOk=true;
+var rows=[], ordersTableOk=true, matCats=[];
+
+/* ── 내부 관리 품목 목록("코드" 드롭다운용) ───────────────────────────
+   자재관리(index.html)·자재검수서(inspection.html)와 같은 app_settings를 읽어서 같은
+   품목 목록을 보여준다 — 이름이 늘어나거나 바뀌어도 이 화면에서 따로 관리할 필요가 없다. */
+async function loadMatCats(){
+  if(!sbClient) return;
+  var res = await sbClient.from('app_settings').select('cats_by_menu,specs_by_cat,material_qty').eq('id','global').single();
+  var sd = (res && res.data) || {};
+  var seen={}; matCats=[];
+  ((sd.cats_by_menu||{})['시공']||[]).forEach(function(c){ if(c && !seen[c]){ seen[c]=1; matCats.push(c); } });
+  Object.keys(sd.specs_by_cat||{}).forEach(function(c){ if(c && !seen[c]){ seen[c]=1; matCats.push(c); } });
+  Object.keys(sd.material_qty||{}).forEach(function(k){ var c=k.split('|')[0]; if(c && !seen[c]){ seen[c]=1; matCats.push(c); } });
+  renderRows(); // 코드 드롭다운 옵션을 목록으로 다시 채운다
+}
 
 /* ── 이전 입력값 기억(2026-09-14, 사용자 요청) ─────────────────────────
    현장명/수령자/현장연락처/화물&주소/항목은 발주서마다 거의 안 바뀌므로 브라우저에
@@ -293,13 +308,14 @@ loadLastValues();
 if(document.getElementById('inItemCode').value.trim()) regenerateReqNo();
 
 /* ── 품목 행 ────────────────────────────────────────────────────── */
+function blankRow(){ return {cat:'1', code:'', name:'', spec:'', material:'', unit:'', qty:'', price:'', need_date:'', vendor:''}; }
 function addRow(){
-  rows.push({cat:'1', name:'', spec:'', material:'', unit:'', qty:'', price:'', need_date:'', vendor:''});
+  rows.push(blankRow());
   renderRows();
 }
 function delRow(i){
   rows.splice(i,1);
-  if(!rows.length) rows.push({cat:'1', name:'', spec:'', material:'', unit:'', qty:'', price:'', need_date:'', vendor:''});
+  if(!rows.length) rows.push(blankRow());
   renderRows();
 }
 function onRowField(i, field, val){
@@ -311,6 +327,15 @@ function catOptions(sel){
     return '<option value="'+k+'"'+(sel===k?' selected':'')+'>'+k+'-'+esc(CAT_LABELS[k])+'</option>';
   }).join('');
 }
+/* "코드" — 계약내역서 품명(자유입력)과 자재관리(index.html/inspection.html)가 쓰는 내부 관리
+   품목 이름이 서로 다른 경우가 많아서 생긴 칸(2026-09-14, 사용자 검토 요청). 연결하면 저장할 때
+   app_settings.material_qty[코드|규격].ordered에 금회청구량이 누적된다 — index.html 주석에
+   미리 마련해둔 자리(발주수량)를 실제로 채우는 연동. 연결은 선택사항이라 안 골라도 저장된다. */
+function codeOptions(sel){
+  return '<option value="">- 연결안함 -</option>' + matCats.map(function(c){
+    return '<option value="'+esc(c)+'"'+(sel===c?' selected':'')+'>'+esc(c)+'</option>';
+  }).join('');
+}
 function updateSummary(){
   var withItem = rows.filter(function(r){ return r.name; }).length;
   document.getElementById('rowSummary').textContent = '품목 '+withItem+'건';
@@ -320,6 +345,7 @@ function renderRows(){
   tb.innerHTML = rows.map(function(r,i){
     return '<tr>'
       + '<td><select onchange="onRowField('+i+',\'cat\',this.value)">'+catOptions(r.cat)+'</select></td>'
+      + '<td><select onchange="onRowField('+i+',\'code\',this.value)">'+codeOptions(r.code)+'</select></td>'
       + '<td><input type="text" value="'+esc(r.name)+'" oninput="onRowField('+i+',\'name\',this.value)"></td>'
       + '<td><input type="text" value="'+esc(r.spec)+'" oninput="onRowField('+i+',\'spec\',this.value)"></td>'
       + '<td><input type="text" value="'+esc(r.material)+'" oninput="onRowField('+i+',\'material\',this.value)"></td>'
@@ -343,6 +369,27 @@ function collectHead(){
     address:document.getElementById('inAddr').value.trim(),
     remarks:document.getElementById('inRemarks').value.trim()
   };
+}
+/* "코드"가 연결된 품목만, 발주서 저장이 끝난 뒤 material_qty에 발주수량을 더한다 — 실패해도
+   발주서 자체는 이미 저장됐으니 조용히 넘어간다(사용자에게 굳이 알리지 않음). */
+async function accumulateOrderedQty(items){
+  var linked = items.filter(function(r){ return r.code && (Number(r.qty)||0) > 0; });
+  if(!linked.length || !sbClient) return;
+  try{
+    var cur = await sbClient.from('app_settings').select('material_qty').eq('id','global').single();
+    if(cur.error) throw new Error(cur.error.message);
+    var merged = (cur.data && cur.data.material_qty) || {};
+    linked.forEach(function(r){
+      var key = r.spec ? (r.code+'|'+r.spec) : r.code;
+      var entry = Object.assign({}, merged[key]);
+      entry.ordered = (Number(entry.ordered)||0) + (Number(r.qty)||0);
+      merged[key] = entry;
+    });
+    var res = await sbClient.from('app_settings').update({material_qty:merged}).eq('id','global');
+    if(res.error) throw new Error(res.error.message);
+  }catch(e){
+    console.error('발주수량(material_qty) 반영 실패', e);
+  }
 }
 function setSaveMsg(m,c){ var e=document.getElementById('saveMsg'); e.textContent=m||''; e.style.color=c||'var(--lbl)'; }
 async function saveOrder(){
@@ -375,6 +422,7 @@ async function saveOrder(){
     setSaveMsg('✓ 발주서가 저장되었습니다 ('+head.request_no+')','var(--ok)');
     ordersTableOk = true;
     saveLastValues();
+    accumulateOrderedQty(items);
     showPrintPreview();
     loadRecent();
   }catch(e){
@@ -603,6 +651,7 @@ function exportRecent(idx){
 
 addRow();
 loadRecent();
+loadMatCats();
 </script>
 
 <script>var _ag=document.createElement('script'); _ag.src='https://workreportdaesun.github.io/report/admin-gate.js'; document.head.appendChild(_ag);</script>
