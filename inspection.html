@@ -64,9 +64,15 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
 .cap2 .val{color:var(--ink); font-weight:700;}
 .cap2 .val.rej{color:var(--err);}
 
-/* ── 인쇄본(문서) — report/app/report-pdf.html과 같은 톤 ───────────────── */
+/* ── 인쇄본(문서) — report/app/report-pdf.html과 같은 톤 ─────────────────
+   2026-09-14, "A4 한장 기준으로 만들고 사인은 제일 하단에 배치, 사진대지도 다음페이지에
+   한장으로" 요청 — 발주처/시공사마다 서식이 달라 나중에 현장별로 바뀔 수 있지만, 지금은
+   A4 1장(각 페이지 고정 1123px, 넘치면 잘리지 않고 자동으로 줄어들도록) 기준으로 고정.
+   min-height가 아니라 height로 고정해야 flex(margin-top:auto)가 실제로 "페이지 맨
+   아래"에 붙는다 — min-height는 내용이 넘치면 페이지 자체가 늘어나 버려서 서명란이
+   페이지 중간에 떠 보이는 문제가 있었음. */
 #printView{display:none;}
-.pdf-page{width:794px; margin:0 auto 22px; background:#fff; box-shadow:0 20px 50px rgba(0,0,0,0.15); padding:30px 34px; box-sizing:border-box;}
+.pdf-page{width:794px; height:1123px; margin:0 auto 22px; background:#fff; box-shadow:0 20px 50px rgba(0,0,0,0.15); padding:30px 34px; box-sizing:border-box; overflow:hidden;}
 .doc-titlebox{border:3px solid var(--ink); display:flex; align-items:center; justify-content:center; padding:16px 0; margin-bottom:16px;}
 .doc-titlebox span{font-size:25px; font-weight:800; color:var(--ink); letter-spacing:16px; text-indent:16px;}
 .doc-info{width:100%; border-collapse:collapse; font-size:12px; margin-bottom:14px; table-layout:fixed;}
@@ -216,7 +222,7 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
   </div>
   <div class="msg" id="downloadMsg" style="max-width:900px; margin:0 auto 10px; text-align:right;"></div>
 
-  <div class="pdf-page" id="printPage1" style="min-height:1123px; display:flex; flex-direction:column;">
+  <div class="pdf-page" id="printPage1" style="display:flex; flex-direction:column;">
     <div class="doc-titlebox"><span>자재검수서</span></div>
     <table class="doc-info">
       <tr><th>검수일자</th><td id="pDate"></td><th>검수번호</th><td id="pDoc"></td></tr>
@@ -243,7 +249,7 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
     <div class="pageno" id="pPageNo1">1 / 1</div>
   </div>
 
-  <div class="pdf-page" id="printPage2" style="min-height:1123px; display:none; flex-direction:column;">
+  <div class="pdf-page" id="printPage2" style="display:none; flex-direction:column;">
     <div class="doc-photosec-head">검수 사진 <span>2페이지</span></div>
     <div class="doc-photogrid4" id="pPhotoGrid"></div>
     <div class="pageno" style="margin-top:auto;">2 / 2</div>
@@ -598,10 +604,24 @@ function buildPrintView(itemRows, head, photoList){
       if(rej>0) return {text:'불합격 '+num(rej)+' '+unitOfCat(cat), rej:true};
       return {text:num(r.accept)+' '+unitOfCat(cat), rej:false};
     }
+    /* 사진이 몇 장이든 2페이지가 항상 A4 한 장에 들어가도록, 장수에 맞춰 사진 칸 높이를
+       거꾸로 계산한다(2026-09-14, "사진대지도 다음페이지에 한장으로 보이게" 요청) — 고정
+       비율(aspect-ratio)로 두면 사진이 늘어날수록 페이지가 계속 길어져 버린다. */
+    var PAGE2_PAD=60, HEAD_H=30, FOOT_H=20;                 // 패딩(위+아래)/헤더바/쪽번호 여유
+    var availH = 1123 - PAGE2_PAD - HEAD_H - FOOT_H;
+    var cols = 2, pairRows = Math.max(1, Math.ceil(photoList.length/cols));
+    var rowH = Math.floor(availH / pairRows);
+    var capH = 46;
+    var imgH = Math.max(50, rowH - capH - 2);
+    var colW = Math.floor((794 - 2*34 - 2)/cols);           // 페이지 좌우 패딩·칸 사이 gap(2px) 뺀 실제 칸 너비
+    var imgW = Math.min(colW, Math.round(imgH*0.813));
+    imgH = Math.round(imgW/0.813);                          // 너비가 칸에 맞춰 줄었으면 높이도 비율대로 다시 계산
+
     document.getElementById('pPhotoGrid').innerHTML = photoList.map(function(p){
       var q = qtyLabelFor(p.cat);
-      return '<div class="doc-photo4"><img class="ph" src="'+esc(p.url)+'">'
-        + '<div class="cap2">'
+      return '<div class="doc-photo4" style="height:'+(imgH+capH)+'px; display:flex; flex-direction:column; overflow:hidden;">'
+        + '<img class="ph" src="'+esc(p.url)+'" style="width:100%; height:'+imgH+'px; aspect-ratio:auto; object-fit:cover; flex-shrink:0;">'
+        + '<div class="cap2" style="height:'+capH+'px; overflow:hidden;">'
         +   '<div><span class="lbl">검수번호 </span><span class="val">'+esc(head.doc||'-')+'</span></div>'
         +   '<div><span class="lbl">검수품목 </span><span class="val">'+esc(p.cat||'전체')+'</span></div>'
         +   '<div><span class="lbl">수량 </span><span class="val'+(q.rej?' rej':'')+'">'+esc(q.text)+'</span></div>'
