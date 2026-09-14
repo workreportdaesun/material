@@ -44,6 +44,9 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); displ
 .row .name{flex:1; min-width:0; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .row .unit{font-size:11px; color:var(--lbl); background:var(--field-bg); border:1px solid var(--field-bd);
   border-radius:4px; padding:1px 6px; flex-shrink:0;}
+.row .unit-sel{font-size:11px; color:var(--brand-2); font-weight:700; background:var(--field-bg);
+  border:1px solid var(--field-bd); border-radius:4px; padding:1px 4px; flex-shrink:0; font-family:inherit; cursor:pointer;}
+.row .unit-sel:focus{outline:none; border-color:var(--brand-2);}
 .row .ic{border:none; background:none; cursor:pointer; font-size:13px; padding:2px 4px; flex-shrink:0; opacity:.6;}
 .row .ic:hover{opacity:1;}
 .empty-hint{padding:24px 16px; text-align:center; color:var(--lbl); font-size:13px; line-height:1.6;}
@@ -152,15 +155,38 @@ function renderItems(){
   if(!list.length){ body.innerHTML='<div class="empty-hint">등록된 품목이 없습니다</div>'; return; }
   body.innerHTML=list.map(function(cat,i){
     var unit=itemUnit[cat]||'EA';
+    // 단위만 바꾸고 싶을 때 ✏️(이름 수정)까지 안 거치도록, 단위는 행에서 바로 고를 수 있는
+    // select로 둔다 — 고르는 즉시 저장된다(2026-09-14, "단위 수정 간단하게" 요청).
+    var unitCell = isAdmin
+      ? '<select class="unit-sel" onclick="event.stopPropagation()" onchange="event.stopPropagation();setItemUnit('+i+',this.value)">'
+          +unitOptionsFor(unit).map(function(u){ return '<option value="'+u.replace(/"/g,'&quot;')+'"'+(u===unit?' selected':'')+'>'+esc(u)+'</option>'; }).join('')
+          +'</select>'
+      : '<span class="unit">'+esc(unit)+'</span>';
     return '<div class="row'+(cat===selectedCat?' sel':'')+'" onclick="selectItem('+i+')">'
       +'<button type="button" class="mv" onclick="event.stopPropagation();moveItem('+i+',-1)" '+(i===0?'disabled':'')+'>▲</button>'
       +'<button type="button" class="mv" onclick="event.stopPropagation();moveItem('+i+',1)" '+(i===list.length-1?'disabled':'')+'>▼</button>'
       +'<span class="name">'+esc(cat)+'</span>'
-      +'<span class="unit">'+esc(unit)+'</span>'
-      +'<button type="button" class="ic" onclick="event.stopPropagation();editItem('+i+')" title="수정">✏️</button>'
+      +unitCell
+      +'<button type="button" class="ic" onclick="event.stopPropagation();editItem('+i+')" title="이름 수정">✏️</button>'
       +'<button type="button" class="ic" onclick="event.stopPropagation();removeItem('+i+')" title="삭제">✕</button>'
       +'</div>';
   }).join('');
+}
+// 품목 행의 단위 select 후보 — report ⚙️설정의 "단위 관리" 목록(unitOptions)에 흔한 기본값(EA/M/PT)과
+// 지금 값을 더해 절대 목록에 없는 값이 select에서 사라지는 일이 없게 한다.
+function unitOptionsFor(current){
+  var seen={}, arr=[];
+  (unitOptions||[]).forEach(function(u){ if(u && !seen[u]){ seen[u]=1; arr.push(u); } });
+  ['EA','M','PT'].forEach(function(u){ if(!seen[u]){ seen[u]=1; arr.push(u); } });
+  if(current && !seen[current]){ seen[current]=1; arr.push(current); }
+  return arr;
+}
+async function setItemUnit(i, val){
+  if(!isAdmin || !val) return;
+  var cat=sikongList()[i];
+  itemUnit[cat]=val;
+  setNote('저장 중…');
+  await pushSettingsToSupabase();
 }
 function selectItem(i){
   selectedCat = sikongList()[i];
