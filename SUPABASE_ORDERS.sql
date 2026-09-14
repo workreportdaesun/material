@@ -21,6 +21,18 @@ create table if not exists public.material_orders (
 create index if not exists material_orders_request_no_idx on public.material_orders (request_no);
 create index if not exists material_orders_created_at_idx on public.material_orders (created_at desc);
 
+-- 청구서번호는 날짜-항목-일련번호로 자동생성된다(예: 2026-09-14-CONDUIT-0001) — 겹치는 번호가
+-- 저장되지 않도록 UNIQUE로 막는다(2026-09-14). 기존에 이 파일을 이미 실행한 환경에서 다시
+-- 실행해도 안전하도록 존재 여부를 먼저 확인한다.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'material_orders_request_no_uq'
+  ) then
+    alter table public.material_orders add constraint material_orders_request_no_uq unique (request_no);
+  end if;
+end $$;
+
 comment on table public.material_orders is
   '자재발주서(청구서) — 한 건당 한 행, 품목은 items(jsonb) 배열로 저장. [[project_material_inspection_report_plan]] 연장선.';
 

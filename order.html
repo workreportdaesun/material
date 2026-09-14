@@ -99,12 +99,18 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
   <!-- 청구서 기본정보 -->
   <div class="card">
     <div class="hdrgrid">
-      <div class="f" style="grid-column:1/6;"><label>현장명</label><input type="text" id="inSite" placeholder="현장명"></div>
-      <div class="f" style="grid-column:6/10;"><label>청구서번호</label><input type="text" id="inReqNo" placeholder="예: 2026-09-14-A"></div>
-      <div class="f" style="grid-column:1/6;"><label>수령자</label><input type="text" id="inRecipient" placeholder="수령자 이름·직급"></div>
-      <div class="f" style="grid-column:6/10;"><label>현장연락처</label><input type="text" id="inContact" placeholder="010-0000-0000"></div>
+      <div class="f" style="grid-column:1/6;"><label>현장명</label><input type="text" id="inSite" placeholder="현장명" onchange="saveLastValues()"></div>
+      <div class="f" style="grid-column:6/10;">
+        <label>청구서번호 <span style="font-weight:400; color:var(--lbl);">(항목 입력 시 자동생성)</span></label>
+        <div style="display:flex; gap:6px;">
+          <input type="text" id="inItemCode" placeholder="예: CONDUIT" style="width:38%;" onchange="onItemCodeChange()">
+          <input type="text" id="inReqNo" readonly placeholder="항목을 입력하면 자동으로 채워집니다" style="flex:1; background:var(--field-bg); color:var(--lbl);">
+        </div>
+      </div>
+      <div class="f" style="grid-column:1/6;"><label>수령자</label><input type="text" id="inRecipient" placeholder="수령자 이름·직급" onchange="saveLastValues()"></div>
+      <div class="f" style="grid-column:6/10;"><label>현장연락처</label><input type="text" id="inContact" placeholder="010-0000-0000" onchange="saveLastValues()"></div>
     </div>
-    <div class="f" style="margin-top:10px;"><label>화물 &amp; 주소</label><input type="text" id="inAddr" placeholder="배송받을 주소"></div>
+    <div class="f" style="margin-top:10px;"><label>화물 &amp; 주소</label><input type="text" id="inAddr" placeholder="배송받을 주소" onchange="saveLastValues()"></div>
   </div>
 
   <!-- 자재분류 안내 -->
@@ -236,7 +242,55 @@ async function fetchAllRows(table, columns, orderCols, desc){
 }
 
 var rows=[], ordersTableOk=true;
-document.getElementById('inReqNo').placeholder='예: '+todayStr()+'-A';
+
+/* ── 이전 입력값 기억(2026-09-14, 사용자 요청) ─────────────────────────
+   현장명/수령자/현장연락처/화물&주소/항목은 발주서마다 거의 안 바뀌므로 브라우저에
+   저장해두고 다음에 열 때 그대로 채워준다. 여러 사람이 쓸 수 있어 기기별로만
+   기억되면 되니 localStorage로 충분하다(서버 동기화 불필요). */
+var LS_KEYS = {site:'matOrder_site', recipient:'matOrder_recipient', contact:'matOrder_contact', address:'matOrder_address', item:'matOrder_itemCode'};
+function loadLastValues(){
+  document.getElementById('inSite').value = localStorage.getItem(LS_KEYS.site)||'';
+  document.getElementById('inRecipient').value = localStorage.getItem(LS_KEYS.recipient)||'';
+  document.getElementById('inContact').value = localStorage.getItem(LS_KEYS.contact)||'';
+  document.getElementById('inAddr').value = localStorage.getItem(LS_KEYS.address)||'';
+  document.getElementById('inItemCode').value = localStorage.getItem(LS_KEYS.item)||'';
+}
+function saveLastValues(){
+  localStorage.setItem(LS_KEYS.site, document.getElementById('inSite').value.trim());
+  localStorage.setItem(LS_KEYS.recipient, document.getElementById('inRecipient').value.trim());
+  localStorage.setItem(LS_KEYS.contact, document.getElementById('inContact').value.trim());
+  localStorage.setItem(LS_KEYS.address, document.getElementById('inAddr').value.trim());
+  localStorage.setItem(LS_KEYS.item, document.getElementById('inItemCode').value.trim());
+}
+
+/* ── 청구서번호 자동생성 — 날짜-항목-일련번호 (예: 2026-09-14-CONDUIT-0001)
+   (2026-09-14, 사용자 요청). 같은 날짜+항목으로 이미 등록된 발주서 중 가장 큰
+   일련번호를 찾아 그 다음 번호를 매긴다 — material_orders.request_no에 UNIQUE
+   제약을 걸어(SUPABASE_ORDERS.sql) 겹치면 저장 시점에 다시 한번 걸러진다. */
+function reqNoPrefix(date, item){ return date+'-'+item+'-'; }
+async function nextSerial(prefix){
+  if(!sbClient) return '0001';
+  var res = await sbClient.from('material_orders').select('request_no').ilike('request_no', prefix+'%');
+  if(res.error || !res.data) return '0001';
+  var max = 0;
+  res.data.forEach(function(row){
+    var m = /-(\d+)$/.exec(row.request_no||'');
+    if(m){ var n = parseInt(m[1],10); if(n>max) max=n; }
+  });
+  return String(max+1).padStart(4,'0');
+}
+async function regenerateReqNo(){
+  var item = document.getElementById('inItemCode').value.trim().toUpperCase().replace(/\s+/g,'');
+  var reqEl = document.getElementById('inReqNo');
+  if(!item){ reqEl.value=''; return; }
+  var prefix = reqNoPrefix(todayStr(), item);
+  var serial = await nextSerial(prefix);
+  reqEl.value = prefix+serial;
+}
+function onItemCodeChange(){ saveLastValues(); regenerateReqNo(); }
+
+loadLastValues();
+if(document.getElementById('inItemCode').value.trim()) regenerateReqNo();
 
 /* ── 품목 행 ────────────────────────────────────────────────────── */
 function addRow(){
@@ -293,23 +347,34 @@ function collectHead(){
 function setSaveMsg(m,c){ var e=document.getElementById('saveMsg'); e.textContent=m||''; e.style.color=c||'var(--lbl)'; }
 async function saveOrder(){
   if(!sbClient) return;
-  var head = collectHead();
-  if(!head.request_no){ setSaveMsg('❌ 청구서번호를 입력해주세요','var(--err)'); return; }
+  if(!document.getElementById('inItemCode').value.trim()){ setSaveMsg('❌ 항목을 입력해주세요 (청구서번호가 자동으로 만들어집니다)','var(--err)'); return; }
   var items = rows.filter(function(r){ return r.name; });
   if(!items.length){ setSaveMsg('❌ 품명이 입력된 품목이 하나 이상 있어야 합니다','var(--err)'); return; }
-
-  var payload = Object.assign({}, head, {
-    items: items,
-    created_by: localStorage.getItem('member_name')||null
-  });
 
   var btn=document.getElementById('saveBtn');
   btn.disabled=true; setSaveMsg('저장 중...','var(--lbl)');
   try{
+    // 저장 직전에 한 번 더 채번 — 그 사이 다른 사람이 같은 항목으로 먼저 저장했을 수 있어서.
+    await regenerateReqNo();
+    var head = collectHead();
+    var payload = Object.assign({}, head, {
+      items: items,
+      created_by: localStorage.getItem('member_name')||null
+    });
     var res = await sbClient.from('material_orders').insert([payload]);
-    if(res.error) throw new Error(res.error.message);
-    setSaveMsg('✓ 발주서가 저장되었습니다','var(--ok)');
+    if(res.error){
+      // request_no UNIQUE 제약과 부딪히면(동시 저장 등) 한 번 더 채번해서 재시도.
+      if(/duplicate key|unique constraint/i.test(res.error.message||'')){
+        await regenerateReqNo();
+        head = collectHead();
+        payload = Object.assign({}, payload, {request_no:head.request_no});
+        res = await sbClient.from('material_orders').insert([payload]);
+      }
+      if(res.error) throw new Error(res.error.message);
+    }
+    setSaveMsg('✓ 발주서가 저장되었습니다 ('+head.request_no+')','var(--ok)');
     ordersTableOk = true;
+    saveLastValues();
     showPrintPreview();
     loadRecent();
   }catch(e){
