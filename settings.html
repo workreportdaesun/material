@@ -123,10 +123,18 @@ function setNote(msg, cls){
   el.textContent=msg||''; el.className='note'+(cls?' '+cls:'');
 }
 
+var settingsLoaded=false;   // 로딩 자체가 실패했으면 절대 저장을 시도하지 않는다 — 안 그러면
+                             // 못 불러온 기존 목록을 빈 값으로 덮어써버리는 사고가 난다.
 async function loadSettings(){
-  if(!sbClient){ setNote('Supabase 연결 안 됨','err'); return; }
-  var res=await sbClient.from('app_settings').select('cats_by_menu,specs_by_cat,item_unit,unit_options').eq('id','global').single();
-  if(res.error || !res.data){ setNote('불러오기 실패: '+(res.error&&res.error.message||''),'err'); return; }
+  if(!sbClient){ setNote('Supabase 연결 안 됨 — 새로고침 전엔 저장하지 마세요','err'); return; }
+  // 컬럼을 이름으로 하나하나 지정하면 그중 하나라도(예: unit_options) 이 프로젝트 스키마에
+  // 없을 때 select 자체가 에러로 실패해서 화면이 통째로 빈 채로 뜬다 — 여기서 새 항목을
+  // 추가하면 못 불러온 기존 목록을 빈 배열로 덮어써버리는 사고로 이어진다(2026-09-14, "수정
+  // 저장이 안 됨" 신고 원인으로 추정). report/shoot/gallery처럼 select('*')로 바꿔 이 문제를
+  // 원천적으로 피한다 — 없는 컬럼은 그냥 undefined로 오고 에러가 나지 않는다.
+  var res=await sbClient.from('app_settings').select('*').eq('id','global').single();
+  if(res.error || !res.data){ setNote('불러오기 실패: '+(res.error&&res.error.message||'')+' — 새로고침 전엔 저장하지 마세요','err'); return; }
+  settingsLoaded=true;
   catsByMenu = res.data.cats_by_menu || {};
   specsByCat = res.data.specs_by_cat || {};
   itemUnit = res.data.item_unit || {};
@@ -322,6 +330,7 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ ret
    시공 외 다른 공종 배열도 같이 들어있는 전체 객체를 그대로 보내야 그쪽을 안 지운다. */
 async function pushSettingsToSupabase(){
   if(!sbClient) return false;
+  if(!settingsLoaded){ setNote('❌ 처음 불러오기가 실패한 상태라 저장하지 않았습니다 — 창을 닫고 다시 열어주세요','err'); return false; }
   var payload={ id:'global', cats_by_menu:catsByMenu, specs_by_cat:specsByCat, item_unit:itemUnit, updated_at:new Date().toISOString() };
   for(var attempt=0; attempt<5; attempt++){
     try{
@@ -346,6 +355,7 @@ function subscribeRealtime(){
       specsByCat=payload.new.specs_by_cat||specsByCat;
       itemUnit=payload.new.item_unit||itemUnit;
       lastStructKey=k;
+      settingsLoaded=true;   // 처음 불러오기가 실패했어도 실시간으로 정상 데이터를 받으면 복구
       if(selectedCat && sikongList().indexOf(selectedCat)===-1) selectedCat=null;
       renderItems(); renderSpecs();
       setNote('다른 화면에서 바뀐 내용을 반영했습니다','ok');
