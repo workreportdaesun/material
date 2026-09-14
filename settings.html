@@ -232,14 +232,17 @@ function editItem(i){
   document.getElementById('itemSaveBtn').textContent='저장';
 }
 async function addOrSaveItem(){
+  // 아래 return들은 전부 "왜 저장이 안 됐는지" 화면에 보이도록 반드시 setNote를 남긴다 —
+  // 예전엔 조용히 아무 일도 안 일어나서 "수정 저장이 안 됨" 신고의 실제 원인이었을 가능성이
+  // 크다(2026-09-14, 특히 바로 아래 "이미 있는 이름" 중복 검사가 유력한 용의자).
   if(!isAdmin) return;
   var nameInp=document.getElementById('newItemInput'), unitInp=document.getElementById('newItemUnit');
   var v=nameInp.value.trim(), unit=unitInp.value.trim()||'EA';
-  if(!v) return;
+  if(!v){ setNote('❌ 품목 이름을 입력하세요','err'); return; }
   var list=sikongList();
   if(editingItemIdx>=0){
     var old=list[editingItemIdx];
-    if(list.indexOf(v)!==-1 && old!==v) return;
+    if(list.indexOf(v)!==-1 && old!==v){ setNote('❌ "'+v+'"은(는) 이미 있는 품목 이름입니다','err'); return; }
     if(old!==v){
       delete itemUnit[old];
       // 이름이 바뀐 규격 목록도 새 이름으로 그대로 넘겨준다(report엔 없는 보완 — 2026-09-14,
@@ -251,7 +254,7 @@ async function addOrSaveItem(){
     editingItemIdx=-1;
     document.getElementById('itemSaveBtn').textContent='추가';
   }else{
-    if(list.indexOf(v)!==-1) return;
+    if(list.indexOf(v)!==-1){ setNote('❌ "'+v+'"은(는) 이미 있는 품목 이름입니다','err'); return; }
     list.push(v);
   }
   itemUnit[v]=unit;
@@ -260,7 +263,7 @@ async function addOrSaveItem(){
   await pushSettingsToSupabase();
 }
 function removeItem(i){
-  if(!isAdmin) return;
+  if(!isAdmin){ setNote('❌ 운영자만 삭제할 수 있습니다','err'); return; }
   var list=sikongList();
   if(list.length<=1){ setNote('품목은 최소 1개가 있어야 합니다','err'); return; }
   var cat=list[i];
@@ -276,7 +279,7 @@ function removeItem(i){
   pushSettingsToSupabase();
 }
 async function moveItem(i,dir){
-  if(!isAdmin) return;
+  if(!isAdmin){ setNote('❌ 운영자만 순서를 바꿀 수 있습니다','err'); return; }
   var list=sikongList();
   var j=i+dir;
   if(j<0||j>=list.length) return;
@@ -314,26 +317,40 @@ function editSpec(i){
   document.getElementById('specSaveBtn').textContent='저장';
 }
 async function addOrSaveSpec(){
-  if(!isAdmin || !selectedCat) return;
+  if(!isAdmin){ setNote('❌ 운영자만 규격을 바꿀 수 있습니다','err'); return; }
+  if(!selectedCat){ setNote('❌ 왼쪽에서 품목을 먼저 선택하세요','err'); return; }
   var inp=document.getElementById('newSpecInput');
   var v=inp.value.trim();
-  if(!v) return;
+  if(!v){ setNote('❌ 규격 값을 입력하세요','err'); return; }
   var specs=specsByCat[selectedCat]||(specsByCat[selectedCat]=[]);
   if(editingSpecIdx>=0){
-    if(specs.indexOf(v)!==-1 && specs[editingSpecIdx]!==v) return;
+    if(specs.indexOf(v)!==-1 && specs[editingSpecIdx]!==v){ setNote('❌ "'+v+'"은(는) 이미 있는 규격입니다','err'); return; }
     specs[editingSpecIdx]=v;
     editingSpecIdx=-1;
     document.getElementById('specSaveBtn').textContent='추가';
   }else{
-    if(specs.indexOf(v)!==-1) return;
+    if(specs.indexOf(v)!==-1){ setNote('❌ "'+v+'"은(는) 이미 있는 규격입니다','err'); return; }
     specs.push(v);
   }
   inp.value='';
   renderSpecs();
   await pushSettingsToSupabase();
 }
+// 규격 행의 ▲▼ 버튼이 처음부터 이 함수를 호출하고 있었는데 정작 함수 자체가 빠져 있었다
+// (2026-09-14 발견) — 눌러도 "moveSpec is not defined" 오류만 콘솔에 찍히고 화면엔 아무
+// 반응이 없어서, 규격을 순서만 바꾸려 한 경우 "수정이 안 된다"로 보였을 것이다. 실제로
+// 이게 신고받은 "저장이 안 됨"의 원인이었을 가능성이 가장 크다.
+async function moveSpec(i,dir){
+  if(!isAdmin || !selectedCat){ setNote('❌ 운영자만 순서를 바꿀 수 있습니다','err'); return; }
+  var specs=specsByCat[selectedCat]||[];
+  var j=i+dir;
+  if(j<0||j>=specs.length) return;
+  var t=specs[i]; specs[i]=specs[j]; specs[j]=t;
+  renderSpecs();
+  await pushSettingsToSupabase();
+}
 function removeSpec(i){
-  if(!isAdmin || !selectedCat) return;
+  if(!isAdmin || !selectedCat){ setNote('❌ 운영자만 삭제할 수 있습니다','err'); return; }
   specsByCat[selectedCat].splice(i,1);
   editingSpecIdx=-1;
   document.getElementById('newSpecInput').value='';
