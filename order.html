@@ -23,6 +23,10 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-h
 .hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
 .card{background:var(--card); border:1px solid var(--card-bd); border-radius:0; padding:16px 18px; margin-bottom:16px;}
 .grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:10px 12px;}
+/* 아래 청구 품목표(자재분류7·품명12·규격12·재질22·단위6·금회청구량8·계약단가9·입고요청일11·비고11%)와
+   같은 비율의 9열 그리드 — 청구서번호·현장연락처를 품목표의 "금회청구량" 열과 같은 위치에 오도록
+   맞춘다(2026-09-14, 사용자 요청). */
+.hdrgrid{display:grid; grid-template-columns:7fr 12fr 12fr 22fr 6fr 8fr 9fr 11fr 11fr; gap:10px 12px;}
 .f{display:flex; flex-direction:column; gap:3px;}
 .f label{font-size:11px; font-weight:700; color:var(--lbl);}
 .f input, .f select, .f textarea{background:var(--field-bg); border:1px solid var(--field-bd); border-radius:0; height:26px; padding:0 6px; font-family:inherit; font-size:12px; color:var(--ink);}
@@ -94,11 +98,11 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
 
   <!-- 청구서 기본정보 -->
   <div class="card">
-    <div class="grid4">
-      <div class="f"><label>현장명</label><input type="text" id="inSite" placeholder="현장명"></div>
-      <div class="f"><label>청구서번호</label><input type="text" id="inReqNo" placeholder="예: 2026-09-14-A"></div>
-      <div class="f"><label>수령자</label><input type="text" id="inRecipient" placeholder="수령자 이름·직급"></div>
-      <div class="f"><label>현장연락처</label><input type="text" id="inContact" placeholder="010-0000-0000"></div>
+    <div class="hdrgrid">
+      <div class="f" style="grid-column:1/6;"><label>현장명</label><input type="text" id="inSite" placeholder="현장명"></div>
+      <div class="f" style="grid-column:6/10;"><label>청구서번호</label><input type="text" id="inReqNo" placeholder="예: 2026-09-14-A"></div>
+      <div class="f" style="grid-column:1/6;"><label>수령자</label><input type="text" id="inRecipient" placeholder="수령자 이름·직급"></div>
+      <div class="f" style="grid-column:6/10;"><label>현장연락처</label><input type="text" id="inContact" placeholder="010-0000-0000"></div>
     </div>
     <div class="f" style="margin-top:10px;"><label>화물 &amp; 주소</label><input type="text" id="inAddr" placeholder="배송받을 주소"></div>
   </div>
