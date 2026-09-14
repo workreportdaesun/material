@@ -488,6 +488,28 @@ function renderLoadBanner(){
 }
 
 /* ── 인쇄 미리보기 ─────────────────────────────────────────────── */
+/* 화면 전환은 DOM display만 바꿀 뿐 데이터를 지우지 않는다 — rows/photos/입력칸 값은
+   항상 그대로 메모리·DOM에 남아있다. 그런데도 "미리보기에서 뒤로 가면 초기화된다"는
+   문제가 있었던 건 브라우저(모바일 포함) 뒤로가기 버튼/스와이프가 history 항목을
+   하나도 안 쌓아둔 이 페이지에서는 화면 전환이 아니라 페이지 자체를 벗어나 버렸기
+   때문 — 다시 들어오면 새로 불러와 입력값이 사라진 것처럼 보였다(2026-09-14 버그 수정).
+   그래서 미리보기로 들어갈 때 history 상태를 하나 쌓고, 뒤로가기(popstate)를 페이지
+   이탈이 아니라 "편집 화면으로 전환"으로 가로챈다. */
+function goToPrintDom(){
+  document.getElementById('formView').style.display='none';
+  document.getElementById('printView').style.display='block';
+}
+function goToFormDom(){
+  document.getElementById('printView').style.display='none';
+  document.getElementById('formView').style.display='block';
+}
+function enterPrintView(){
+  goToPrintDom();
+  history.pushState({inspView:'print'}, '', location.href);
+}
+window.addEventListener('popstate', function(e){
+  if(e.state && e.state.inspView==='print') goToPrintDom(); else goToFormDom();
+});
 function showPrintPreview(){
   buildPrintView(rows.filter(function(r){ return r.cat; }), {
     date:document.getElementById('inDate').value,
@@ -498,12 +520,10 @@ function showPrintPreview(){
     place:document.getElementById('inPlace').value.trim(),
     note:document.getElementById('inNote').value.trim()
   }, photos);
-  document.getElementById('formView').style.display='none';
-  document.getElementById('printView').style.display='block';
+  enterPrintView();
 }
 function hidePrintPreview(){
-  document.getElementById('printView').style.display='none';
-  document.getElementById('formView').style.display='block';
+  history.back();   // popstate 핸들러가 편집 화면으로 되돌린다
 }
 function buildPrintView(itemRows, head, photoList){
   document.getElementById('pDate').textContent = head.date||'-';
@@ -601,8 +621,7 @@ function reprintRecent(idx){
   if(!g) return;
   var itemRows = g.rows.map(function(m){ return {cat:m.cat, spec:m.spec, accept:num(m.qty)+num(m.reject_qty||0), reject:num(m.reject_qty||0)}; });
   buildPrintView(itemRows, {date:g.date, doc:g.doc_no, supplier:g.supplier, taker:g.taker, inspector:g.inspector, place:g.place, note:g.note}, g.photos||[]);
-  document.getElementById('formView').style.display='none';
-  document.getElementById('printView').style.display='block';
+  enterPrintView();
 }
 
 /* index.html 이력 모달의 "검수 다시 보기"에서 ?doc=검수번호 로 들어오면 바로 인쇄본을 연다
@@ -617,8 +636,7 @@ async function loadAndPrintDoc(docNo){
   var docPhotos = [];
   ms.forEach(function(m){ if(m.photo_urls && m.photo_urls.length) docPhotos = m.photo_urls; });
   buildPrintView(itemRows, head, docPhotos);
-  document.getElementById('formView').style.display='none';
-  document.getElementById('printView').style.display='block';
+  enterPrintView();
 }
 
 addRow();
