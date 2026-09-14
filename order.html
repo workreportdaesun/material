@@ -421,15 +421,17 @@ async function exportExcel(head, items){
   box(1,1,1,9, '자재 발주서', {font:{bold:true, size:18}, fill:'FFF5F7FA'});
   ws.getRow(1).height = 30;
 
+  // 청구서번호·현장연락처 라벨을 품목표의 "금회청구량"(6열)과 같은 열에서 시작하도록 배치
+  // (2026-09-14, 사용자 요청 "청구서및 현장연락처 텍스트 위치를 금회청구수량과 같은 열로").
   box(2,1,2,1, '현장명', {font:{bold:true}, fill:LABEL_FILL});
-  box(2,2,2,6, head.site_name||'', {align:LEFT});
-  box(2,7,2,7, '청구서번호', {font:{bold:true}, fill:LABEL_FILL});
-  box(2,8,2,9, head.request_no||'');
+  box(2,2,2,5, head.site_name||'', {align:LEFT});
+  box(2,6,2,6, '청구서번호', {font:{bold:true}, fill:LABEL_FILL});
+  box(2,7,2,9, head.request_no||'');
 
   box(3,1,3,1, '수령자', {font:{bold:true}, fill:LABEL_FILL});
-  box(3,2,3,6, head.recipient||'', {align:LEFT});
-  box(3,7,3,7, '현장연락처', {font:{bold:true}, fill:LABEL_FILL});
-  box(3,8,3,9, head.site_contact||'');
+  box(3,2,3,5, head.recipient||'', {align:LEFT});
+  box(3,6,3,6, '현장연락처', {font:{bold:true}, fill:LABEL_FILL});
+  box(3,7,3,9, head.site_contact||'');
 
   box(4,1,4,1, '화물 & 주소', {font:{bold:true}, fill:LABEL_FILL});
   box(4,2,4,9, head.address||'', {align:LEFT});
