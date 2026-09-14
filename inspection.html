@@ -538,8 +538,31 @@ function buildPrintView(itemRows, head, photoList){
   document.getElementById('printPage2').style.display = hasPhotos ? 'flex' : 'none';
   document.getElementById('pPageNo1').textContent = hasPhotos ? '1 / 2 — 검수 사진은 다음 페이지 참조' : '1 / 1';
   if(hasPhotos){
+    /* 사진 아래 캡션(검수번호/검수품목/수량/날짜) — 작성 화면의 renderPhotos()와 같은 값을
+       계산해서 붙인다. 여기까지는 buildPrintView 인자로 받은 itemRows/head를 기준으로 계산해야
+       한다 — 편집 중인 전역 rows가 아니라(최근 검수서 다시 보기·?doc= 열람 때는 전역 rows와
+       다르다) 이 화면에 실제로 표시된 값과 캡션이 항상 일치해야 하기 때문(2026-09-14 버그 수정 —
+       인쇄 미리보기에서 캡션이 통째로 안 보였음). */
+    function qtyLabelFor(cat){
+      if(!cat){
+        var acc=0; itemRows.forEach(function(r){ acc += Number(r.accept)||0; });
+        return {text:num(acc)+' EA', rej:false};
+      }
+      var r = itemRows.filter(function(x){ return x.cat===cat; })[0];
+      if(!r) return {text:'-', rej:false};
+      var rej = Number(r.reject)||0;
+      if(rej>0) return {text:'불합격 '+num(rej)+' '+unitOfCat(cat), rej:true};
+      return {text:num(r.accept)+' '+unitOfCat(cat), rej:false};
+    }
     document.getElementById('pPhotoGrid').innerHTML = photoList.map(function(p){
-      return '<div class="doc-photo4"><img class="ph" src="'+esc(p.url)+'"></div>';
+      var q = qtyLabelFor(p.cat);
+      return '<div class="doc-photo4"><img class="ph" src="'+esc(p.url)+'">'
+        + '<div class="cap2">'
+        +   '<div><span class="lbl">검수번호 </span><span class="val">'+esc(head.doc||'-')+'</span></div>'
+        +   '<div><span class="lbl">검수품목 </span><span class="val">'+esc(p.cat||'전체')+'</span></div>'
+        +   '<div><span class="lbl">수량 </span><span class="val'+(q.rej?' rej':'')+'">'+esc(q.text)+'</span></div>'
+        +   '<div><span class="lbl">날짜 </span><span class="val">'+esc(head.date||'-')+'</span></div>'
+        + '</div></div>';
     }).join('');
   }
 }
