@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1100, user-scalable=yes, maximum-scale=5"/>
+<title>자재발주서</title>
+<link rel="icon" type="image/png" href="https://workreportdaesun.github.io/report/app/icon-192.png"/>
+<!-- 자재관리와 같은 기준 — 현장관리자 이상. index.html·inspection.html과 동일한 게이트. -->
+<script src="/report/role-gate.js" data-require="manager" data-login="/report/app/login.html"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#F0F4F8; --card:#fff; --card-bd:#D1DCE8; --ink:#1A2332; --lbl:#4A6B8A; --field-bd:#C8D8E8; --head-bg:#DCE6F2;
+  --field-bg:#F7FAFC; --brand-1:#1E3A5F; --brand-2:#2E5F9E;
+  --ok:#1B7A43; --err:#C0392B; --warn:#A05A18;
+  --font-body:Arial,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --font-mono:"SFMono-Regular",Consolas,Menlo,monospace;
+}
+body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-height:100vh;}
+.wrap{width:100%; max-width:1180px; margin:0 auto; padding:24px 20px 60px;}
+.hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:0; padding:16px 20px; margin-bottom:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;}
+.hdr h1{font-size:19px; font-weight:800;}
+.hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
+.card{background:var(--card); border:1px solid var(--card-bd); border-radius:0; padding:16px 18px; margin-bottom:16px;}
+.grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:10px 12px;}
+.f{display:flex; flex-direction:column; gap:3px;}
+.f label{font-size:11px; font-weight:700; color:var(--lbl);}
+.f input, .f select, .f textarea{background:var(--field-bg); border:1px solid var(--field-bd); border-radius:0; height:26px; padding:0 6px; font-family:inherit; font-size:12px; color:var(--ink);}
+.f textarea{height:64px; padding:6px; resize:vertical;}
+.f input:focus, .f select:focus, .f textarea:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+.btn{border:none; border-radius:0; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; background:var(--brand-2); color:#fff; font-family:inherit;}
+.btn-ghost{background:var(--field-bg); color:var(--brand-2); border:1px solid var(--field-bd);}
+.btn-xl{background:#0F766E; color:#fff;}
+.btn-big{padding:8px 20px; font-size:13px; font-weight:800;}
+.btn:disabled{opacity:.5; cursor:default;}
+.legend-wrap{display:flex; flex-wrap:wrap; gap:6px 8px;}
+.legend-chip{display:inline-flex; align-items:baseline; gap:4px; padding:3px 9px; font-size:11.5px; background:var(--field-bg); border:1px solid var(--field-bd); color:var(--brand-2);}
+.legend-chip b{font-size:11.5px;}
+table.itbl{width:100%; border-collapse:separate; border-spacing:0; font-size:12px; border:1px solid var(--card-bd); background:#fff;}
+table.itbl th{background:var(--head-bg); height:25px; font-size:11.5px; font-weight:700; padding:0 6px; border-right:1px solid var(--card-bd); border-bottom:1px solid var(--card-bd); white-space:nowrap;}
+table.itbl td{padding:3px 4px; border-top:1px solid var(--card-bd); border-right:1px solid var(--card-bd); text-align:center; vertical-align:middle;}
+table.itbl select, table.itbl input{width:100%; height:24px; background:var(--field-bg); border:1px solid var(--card-bd); border-radius:0; padding:0 4px; font-family:inherit; font-size:12px; color:var(--ink); text-align:center;}
+table.itbl select:focus, table.itbl input:focus{outline:none; border-color:var(--brand-2); background:#fff;}
+table.itbl input[type=text]{text-align:left;}
+td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
+.warnbox{border:1px solid #F1948A; background:#FDEDEC; padding:10px 14px; font-size:11.5px; font-style:italic; color:var(--err); line-height:1.6;}
+.actions{display:flex; justify-content:space-between; align-items:center; margin-top:4px;}
+.summary{font-size:12px; color:var(--lbl);}
+.msg{font-size:12px; min-height:16px; margin-top:8px;}
+.note{font-size:11px; color:var(--lbl); line-height:1.6;}
+
+/* ── 인쇄본(문서) — inspection.html과 같은 톤 ───────────────── */
+#printView{display:none;}
+.pdf-page{width:794px; margin:0 auto 22px; background:#fff; box-shadow:0 20px 50px rgba(0,0,0,0.15); padding:30px 34px; box-sizing:border-box;}
+.doc-titlebox{border:3px solid var(--ink); display:flex; align-items:center; justify-content:center; padding:16px 0; margin-bottom:16px;}
+.doc-titlebox span{font-size:25px; font-weight:800; color:var(--ink); letter-spacing:16px; text-indent:16px;}
+.doc-info{width:100%; border-collapse:collapse; font-size:12px; margin-bottom:12px; table-layout:fixed;}
+.doc-info th{background:#F2F5F9; border:1px solid #C8D2DE; padding:6px 10px; text-align:left; font-weight:700; color:#3C4A5C; width:100px; font-size:11.5px;}
+.doc-info td{border:1px solid #C8D2DE; padding:6px 10px; color:var(--ink);}
+.doc-legend{font-size:11px; color:var(--lbl); margin-bottom:8px; line-height:1.6;}
+.doc-body{width:100%; border-collapse:collapse; font-size:11px; margin-bottom:10px;}
+.doc-body th{background:var(--brand-1); color:#fff; padding:6px 4px; font-size:10px; font-weight:700;}
+.doc-body td{border:1px solid #DCE3EC; padding:5px 4px; text-align:center; color:var(--ink);}
+.doc-body td.al{text-align:left;}
+.doc-body tbody tr:nth-child(even){background:#FAFBFD;}
+.doc-warn{font-size:10.5px; font-style:italic; color:var(--err); background:#FDEDEC; border:1px solid #F1948A; padding:8px 10px; margin-bottom:12px; line-height:1.6;}
+.doc-note{width:100%; border-collapse:collapse; font-size:11.5px; margin-bottom:16px;}
+.doc-note th{background:#F2F5F9; border:1px solid #C8D2DE; padding:6px 10px; width:90px; text-align:left; font-weight:700; color:#3C4A5C; vertical-align:top;}
+.doc-note td{border:1px solid #C8D2DE; padding:8px 10px; color:var(--ink); line-height:1.65; white-space:pre-line;}
+.pageno{font-size:10px; color:#8494A6; text-align:center; margin-top:14px;}
+.print-toolbar{max-width:900px; margin:0 auto 16px; display:flex; gap:8px; justify-content:flex-end;}
+@media print{
+  body{background:#fff;}
+  #formView, .print-toolbar{display:none !important;}
+  #printView{display:block !important;}
+  .pdf-page{width:210mm; box-shadow:none; margin:0;}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="formView">
+  <div class="hdr">
+    <div>
+      <h1>📝 자재발주서</h1>
+      <div class="proj" id="hdrProject">S-OIL SHAHEEN Project 계장공사 3공구(PKG-1)</div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="btn btn-ghost" onclick="location.href='index.html'">← 자재관리로</button>
+    </div>
+  </div>
+
+  <div id="loadBanner"></div>
+
+  <!-- 청구서 기본정보 -->
+  <div class="card">
+    <div class="grid4">
+      <div class="f"><label>현장명</label><input type="text" id="inSite" placeholder="현장명"></div>
+      <div class="f"><label>청구서번호</label><input type="text" id="inReqNo" placeholder="예: 2026-09-14-A"></div>
+      <div class="f"><label>수령자</label><input type="text" id="inRecipient" placeholder="수령자 이름·직급"></div>
+      <div class="f"><label>현장연락처</label><input type="text" id="inContact" placeholder="010-0000-0000"></div>
+    </div>
+    <div class="f" style="margin-top:10px;"><label>화물 &amp; 주소</label><input type="text" id="inAddr" placeholder="배송받을 주소"></div>
+  </div>
+
+  <!-- 자재분류 안내 -->
+  <div class="card">
+    <div style="font-size:11px; font-weight:700; color:var(--lbl); margin-bottom:8px;">자재분류 안내</div>
+    <div class="legend-wrap">
+      <span class="legend-chip"><b>1</b> 주자재</span>
+      <span class="legend-chip"><b>2</b> 소모잡자재</span>
+      <span class="legend-chip"><b>3</b> 공구</span>
+      <span class="legend-chip"><b>4</b> 소모공구</span>
+      <span class="legend-chip"><b>5</b> 비품</span>
+      <span class="legend-chip"><b>6</b> 가설</span>
+      <span class="legend-chip"><b>7</b> 안전관리비 청구품목</span>
+      <span class="legend-chip"><b>8</b> 외주</span>
+      <span class="legend-chip"><b>9</b> 임대</span>
+      <span class="legend-chip"><b>10</b> 피복비</span>
+    </div>
+  </div>
+
+  <!-- 청구 품목 -->
+  <div class="card">
+    <table class="itbl">
+      <tr>
+        <th style="width:7%;">자재분류</th>
+        <th style="width:12%;">품명</th>
+        <th style="width:12%;">규격</th>
+        <th style="width:22%;">재질 및 기타사양</th>
+        <th style="width:6%;">단위</th>
+        <th style="width:8%;">금회청구량</th>
+        <th style="width:9%;">계약단가</th>
+        <th style="width:11%;">입고요청일</th>
+        <th style="width:11%;">비고(승인업체)</th>
+        <th style="width:36px;"></th>
+      </tr>
+      <tbody id="itemRows"></tbody>
+    </table>
+    <div style="margin-top:8px;">
+      <button type="button" class="btn btn-ghost" onclick="addRow()">＋ 행 추가</button>
+    </div>
+  </div>
+
+  <div class="warnbox" style="margin-bottom:16px;">
+    * 부득이하게 선발주시 청구서에 선발주 표기하여 주시고, 발주업체 정보(담당자, 연락처, 이메일, 결제조건, 견적서) 자료 첨부<br>
+    * 비고(승인업체)란에 확정 아닌 업체명 기재금지
+  </div>
+
+  <!-- 특이사항 -->
+  <div class="card">
+    <div class="f"><label>특이사항</label><textarea id="inRemarks" placeholder="특이사항을 입력하세요"></textarea></div>
+  </div>
+
+  <div class="actions">
+    <div class="summary" id="rowSummary">품목 0건</div>
+    <div style="display:flex; gap:8px;">
+      <button type="button" class="btn btn-ghost btn-big" onclick="showPrintPreview()">🖨 인쇄 미리보기</button>
+      <button type="button" class="btn btn-xl btn-big" onclick="exportExcel(collectHead(), rows.filter(function(r){return r.name;}))">📊 엑셀 다운로드</button>
+      <button type="button" class="btn btn-big" id="saveBtn" onclick="saveOrder()">저장</button>
+    </div>
+  </div>
+  <div class="msg" id="saveMsg"></div>
+
+  <!-- 최근 발주서 -->
+  <div class="card" style="margin-top:16px;">
+    <div style="font-size:13px; font-weight:800; margin-bottom:8px;">📋 최근 발주서</div>
+    <div id="recentList" style="font-size:12px; color:var(--lbl);">불러오는 중...</div>
+  </div>
+</div>
+
+<!-- ── 인쇄본 ─────────────────────────────────────────────────────── -->
+<div id="printView">
+  <div class="print-toolbar">
+    <button type="button" class="btn btn-ghost" onclick="hidePrintPreview()">← 편집으로</button>
+    <button type="button" class="btn" onclick="window.print()">🖨 인쇄 / PDF 저장</button>
+  </div>
+
+  <div class="pdf-page" id="printPage1">
+    <div class="doc-titlebox"><span>자재발주서</span></div>
+    <table class="doc-info">
+      <tr><th>현장명</th><td id="pSite" colspan="1"></td><th>청구서번호</th><td id="pReqNo"></td></tr>
+      <tr><th>수령자</th><td id="pRecipient"></td><th>현장연락처</th><td id="pContact"></td></tr>
+      <tr><th>화물 &amp; 주소</th><td id="pAddr" colspan="3"></td></tr>
+    </table>
+    <div class="doc-legend">자재분류 : 1-주자재, 2-소모잡자재, 3-공구, 4-소모공구, 5-비품, 6-가설, 7-안전관리비 청구품목, 8-외주, 9-임대, 10-피복비</div>
+    <table class="doc-body">
+      <tr><th>자재분류</th><th>품명</th><th>규격</th><th>재질 및 기타사양</th><th>단위</th><th>금회청구량</th><th>계약단가</th><th>입고요청일</th><th>비고</th></tr>
+      <tbody id="pItems"></tbody>
+    </table>
+    <div class="doc-warn">
+      * 부득이하게 선발주시 청구서에 선발주 표기하여 주시고, 발주업체 정보(담당자, 연락처, 이메일, 결제조건, 견적서) 자료 첨부<br>
+      * 비고(승인업체)란에 확정 아닌 업체명 기재금지
+    </div>
+    <table class="doc-note"><tr><th>특이사항</th><td id="pRemarks">-</td></tr></table>
+    <div class="pageno">1 / 1</div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+var SUPABASE_URL=localStorage.getItem('site_supabase_url')||'https://feymoykefzfwucbrqoja.supabase.co';
+var SUPABASE_KEY=localStorage.getItem('site_supabase_key')||'sb_publishable_ANT6G7_ka3IPHRk_4vLtBg_7G9NWW7i';
+var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
+
+var CAT_LABELS={'1':'주자재','2':'소모잡자재','3':'공구','4':'소모공구','5':'비품','6':'가설','7':'안전관리비 청구품목','8':'외주','9':'임대','10':'피복비'};
+
+function todayStr(){
+  var d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function num(v){ return (Math.round((Number(v)||0)*100)/100); }
+
+/* PostgREST 1000행 제한 대응 — index.html/inspection.html의 fetchAllRows와 동일 규칙. */
+async function fetchAllRows(table, columns, orderCols, desc){
+  var PAGE=1000, from=0, out=[];
+  for(;;){
+    var q = sbClient.from(table).select(columns);
+    (orderCols||[]).forEach(function(c){ q = q.order(c, {ascending:!desc}); });
+    var res = await q.range(from, from+PAGE-1);
+    if(res.error) return {error:res.error, data:null};
+    var rowsOut = res.data || [];
+    out = out.concat(rowsOut);
+    if(rowsOut.length < PAGE) break;
+    from += PAGE;
+  }
+  return {error:null, data:out};
+}
+
+var rows=[], ordersTableOk=true;
+document.getElementById('inReqNo').placeholder='예: '+todayStr()+'-A';
+
+/* ── 품목 행 ────────────────────────────────────────────────────── */
+function addRow(){
+  rows.push({cat:'1', name:'', spec:'', material:'', unit:'', qty:'', price:'', need_date:'', vendor:''});
+  renderRows();
+}
+function delRow(i){
+  rows.splice(i,1);
+  if(!rows.length) rows.push({cat:'1', name:'', spec:'', material:'', unit:'', qty:'', price:'', need_date:'', vendor:''});
+  renderRows();
+}
+function onRowField(i, field, val){
+  rows[i][field] = val;
+  if(field!=='name' && field!=='spec' && field!=='material' && field!=='vendor') renderRows(); else updateSummary();
+}
+function catOptions(sel){
+  return Object.keys(CAT_LABELS).map(function(k){
+    return '<option value="'+k+'"'+(sel===k?' selected':'')+'>'+k+'-'+esc(CAT_LABELS[k])+'</option>';
+  }).join('');
+}
+function updateSummary(){
+  var withItem = rows.filter(function(r){ return r.name; }).length;
+  document.getElementById('rowSummary').textContent = '품목 '+withItem+'건';
+}
+function renderRows(){
+  var tb = document.getElementById('itemRows');
+  tb.innerHTML = rows.map(function(r,i){
+    return '<tr>'
+      + '<td><select onchange="onRowField('+i+',\'cat\',this.value)">'+catOptions(r.cat)+'</select></td>'
+      + '<td><input type="text" value="'+esc(r.name)+'" oninput="onRowField('+i+',\'name\',this.value)"></td>'
+      + '<td><input type="text" value="'+esc(r.spec)+'" oninput="onRowField('+i+',\'spec\',this.value)"></td>'
+      + '<td><input type="text" value="'+esc(r.material)+'" oninput="onRowField('+i+',\'material\',this.value)"></td>'
+      + '<td><input type="text" value="'+esc(r.unit)+'" oninput="onRowField('+i+',\'unit\',this.value)"></td>'
+      + '<td><input type="number" step="any" value="'+esc(r.qty)+'" oninput="onRowField('+i+',\'qty\',this.value)"></td>'
+      + '<td><input type="text" value="'+esc(r.price)+'" oninput="onRowField('+i+',\'price\',this.value)"></td>'
+      + '<td><input type="date" value="'+esc(r.need_date)+'" oninput="onRowField('+i+',\'need_date\',this.value)"></td>'
+      + '<td><input type="text" value="'+esc(r.vendor)+'" oninput="onRowField('+i+',\'vendor\',this.value)"></td>'
+      + '<td class="del" onclick="delRow('+i+')">✕</td></tr>';
+  }).join('');
+  updateSummary();
+}
+
+/* ── 저장 ──────────────────────────────────────────────────────── */
+function collectHead(){
+  return {
+    site_name:document.getElementById('inSite').value.trim(),
+    request_no:document.getElementById('inReqNo').value.trim(),
+    recipient:document.getElementById('inRecipient').value.trim(),
+    site_contact:document.getElementById('inContact').value.trim(),
+    address:document.getElementById('inAddr').value.trim(),
+    remarks:document.getElementById('inRemarks').value.trim()
+  };
+}
+function setSaveMsg(m,c){ var e=document.getElementById('saveMsg'); e.textContent=m||''; e.style.color=c||'var(--lbl)'; }
+async function saveOrder(){
+  if(!sbClient) return;
+  var head = collectHead();
+  if(!head.request_no){ setSaveMsg('❌ 청구서번호를 입력해주세요','var(--err)'); return; }
+  var items = rows.filter(function(r){ return r.name; });
+  if(!items.length){ setSaveMsg('❌ 품명이 입력된 품목이 하나 이상 있어야 합니다','var(--err)'); return; }
+
+  var payload = Object.assign({}, head, {
+    items: items,
+    created_by: localStorage.getItem('member_name')||null
+  });
+
+  var btn=document.getElementById('saveBtn');
+  btn.disabled=true; setSaveMsg('저장 중...','var(--lbl)');
+  try{
+    var res = await sbClient.from('material_orders').insert([payload]);
+    if(res.error) throw new Error(res.error.message);
+    setSaveMsg('✓ 발주서가 저장되었습니다','var(--ok)');
+    ordersTableOk = true;
+    showPrintPreview();
+    loadRecent();
+  }catch(e){
+    console.error('발주서 저장 실패', e);
+    var msg = (e.message||String(e));
+    if(/relation .*material_orders.* does not exist/i.test(msg) || /schema cache/i.test(msg)){
+      ordersTableOk = false;
+      renderLoadBanner();
+      setSaveMsg('❌ material_orders 테이블이 없습니다 — 아래 배너의 SQL을 Supabase에서 먼저 실행해주세요.','var(--err)');
+    } else {
+      setSaveMsg('❌ 저장 실패: '+msg,'var(--err)');
+    }
+  }finally{ btn.disabled=false; }
+}
+function renderLoadBanner(){
+  if(ordersTableOk){ document.getElementById('loadBanner').innerHTML=''; return; }
+  document.getElementById('loadBanner').innerHTML =
+    '<div class="note" style="background:#FEF5E7; border:1px solid #F0C987; padding:12px 14px; margin-bottom:14px; color:#7E5109;">'
+    + '⚠️ <b>material_orders</b> 테이블이 없어 저장할 수 없습니다. Supabase SQL Editor에서 <b>SUPABASE_ORDERS.sql</b>을 먼저 실행해주세요.</div>';
+}
+
+/* ── 인쇄 미리보기 (뒤로가기가 페이지를 벗어나지 않도록 history 상태 사용 — inspection.html과 동일 패턴) ── */
+function goToPrintDom(){
+  document.getElementById('formView').style.display='none';
+  document.getElementById('printView').style.display='block';
+}
+function goToFormDom(){
+  document.getElementById('printView').style.display='none';
+  document.getElementById('formView').style.display='block';
+}
+function enterPrintView(){
+  goToPrintDom();
+  history.pushState({ordView:'print'}, '', location.href);
+}
+window.addEventListener('popstate', function(e){
+  if(e.state && e.state.ordView==='print') goToPrintDom(); else goToFormDom();
+});
+function showPrintPreview(){
+  var head = collectHead();
+  var items = rows.filter(function(r){ return r.name; });
+  buildPrintView(head, items);
+  enterPrintView();
+}
+function hidePrintPreview(){
+  history.back();
+}
+function buildPrintView(head, items){
+  document.getElementById('pSite').textContent = head.site_name||'-';
+  document.getElementById('pReqNo').textContent = head.request_no||'-';
+  document.getElementById('pRecipient').textContent = head.recipient||'-';
+  document.getElementById('pContact').textContent = head.site_contact||'-';
+  document.getElementById('pAddr').textContent = head.address||'-';
+  document.getElementById('pRemarks').textContent = head.remarks||'-';
+  document.getElementById('pItems').innerHTML = items.map(function(r){
+    return '<tr>'
+      + '<td>'+esc(r.cat)+'</td>'
+      + '<td class="al">'+esc(r.name)+'</td>'
+      + '<td>'+esc(r.spec||'-')+'</td>'
+      + '<td class="al">'+esc(r.material||'-')+'</td>'
+      + '<td>'+esc(r.unit||'-')+'</td>'
+      + '<td>'+(r.qty===''?'-':num(r.qty))+'</td>'
+      + '<td>'+esc(r.price||'-')+'</td>'
+      + '<td>'+esc(r.need_date||'-')+'</td>'
+      + '<td>'+esc(r.vendor||'-')+'</td>'
+      + '</tr>';
+  }).join('');
+}
+
+/* ── 엑셀 다운로드 ─────────────────────────────────────────────── */
+function exportExcel(head, items){
+  if(typeof XLSX==='undefined'){ alert('엑셀 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
+  if(!items.length){ alert('내보낼 품목이 없습니다.'); return; }
+  var aoa = [];
+  aoa.push(['자재 발주서']);
+  aoa.push(['현장명', head.site_name||'', '', '청구서번호', head.request_no||'']);
+  aoa.push(['수령자', head.recipient||'', '', '현장연락처', head.site_contact||'']);
+  aoa.push(['화물 & 주소', head.address||'']);
+  aoa.push([]);
+  aoa.push(['자재분류','품명','규격','재질 및 기타사양','단위','금회청구량','계약단가','입고요청일','비고(승인업체)']);
+  items.forEach(function(r){
+    aoa.push([
+      r.cat+'-'+(CAT_LABELS[r.cat]||''), r.name||'', r.spec||'', r.material||'',
+      r.unit||'', (r.qty===''?'':Number(r.qty)), r.price||'', r.need_date||'', r.vendor||''
+    ]);
+  });
+  aoa.push([]);
+  aoa.push(['특이사항', head.remarks||'']);
+
+  var ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:14},{wch:18},{wch:16},{wch:28},{wch:8},{wch:10},{wch:10},{wch:12},{wch:16}];
+  ws['!merges'] = [
+    {s:{r:0,c:0}, e:{r:0,c:8}},
+    {s:{r:3,c:1}, e:{r:3,c:8}}
+  ];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '발주서');
+  var fname = '자재발주서_'+(head.request_no||todayStr())+'.xlsx';
+  XLSX.writeFile(wb, fname);
+}
+
+/* ── 최근 발주서 ───────────────────────────────────────────────── */
+async function loadRecent(){
+  var el = document.getElementById('recentList');
+  if(!sbClient) return;
+  var res = await fetchAllRows('material_orders','id,created_at,request_no,site_name,recipient,site_contact,address,items,remarks',['created_at'],true);
+  if(res.error){
+    if(/relation .*material_orders.* does not exist/i.test(res.error.message||'') || /schema cache/i.test(res.error.message||'')){
+      ordersTableOk=false; renderLoadBanner();
+    }
+    el.textContent = '불러오기 실패';
+    return;
+  }
+  var list = (res.data||[]).slice(0,20);
+  if(!list.length){ el.textContent='등록된 발주서가 없습니다'; return; }
+  el.innerHTML = list.map(function(g,idx){
+    var d = (g.created_at||'').slice(0,10);
+    return '<div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:'+(idx?'1px solid var(--card-bd)':'none')+';">'
+      + '<span>'+esc(d)+' · <b>'+esc(g.request_no)+'</b> · '+esc(g.site_name||'-')+' · '+esc(g.recipient||'-')+' · 품목 '+((g.items||[]).length)+'건</span>'
+      + '<span style="display:flex; gap:6px;">'
+      +   '<button type="button" class="btn btn-ghost" onclick="reprintRecent('+idx+')">🖨 다시 보기</button>'
+      +   '<button type="button" class="btn btn-ghost" onclick="exportRecent('+idx+')">📊 엑셀</button>'
+      + '</span></div>';
+  }).join('');
+  window._recentOrders = list;
+}
+function reprintRecent(idx){
+  var g = window._recentOrders[idx];
+  if(!g) return;
+  buildPrintView({site_name:g.site_name, request_no:g.request_no, recipient:g.recipient, site_contact:g.site_contact, address:g.address, remarks:g.remarks}, g.items||[]);
+  enterPrintView();
+}
+function exportRecent(idx){
+  var g = window._recentOrders[idx];
+  if(!g) return;
+  exportExcel({site_name:g.site_name, request_no:g.request_no, recipient:g.recipient, site_contact:g.site_contact, address:g.address, remarks:g.remarks}, g.items||[]);
+}
+
+addRow();
+loadRecent();
+</script>
+
+<script>var _ag=document.createElement('script'); _ag.src='https://workreportdaesun.github.io/report/admin-gate.js'; document.head.appendChild(_ag);</script>
+<script>var _nf=document.createElement('script'); _nf.src='/report/nav-fab.js'; document.body.appendChild(_nf);</script>
+</body>
+</html>

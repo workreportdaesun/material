@@ -184,9 +184,24 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
   </div>
   <div class="msg" id="saveMsg"></div>
 
-  <!-- 최근 검수서 -->
+  <!-- 검수서 조회 — 전체 검수서를 검색·필터해서 보고, 목록 전체를 엑셀로 내려받는다
+       (2026-09-14, 사용자 요청 "모든 자재 검수서 조회및 PDF,엑셀다운로드 기능추가"). -->
   <div class="card" style="margin-top:16px;">
-    <div style="font-size:13px; font-weight:800; margin-bottom:8px;">📋 최근 검수서</div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+      <div style="font-size:13px; font-weight:800;">📋 검수서 조회</div>
+      <button type="button" class="btn btn-ghost" onclick="downloadAllExcel()">📊 전체 목록 엑셀 다운로드</button>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap;">
+      <input type="search" id="rlSearch" placeholder="검수번호·공급업체 검색" oninput="renderInspectionList()" style="height:26px; background:var(--field-bg); border:1px solid var(--field-bd); font-family:inherit; font-size:12px; padding:0 6px; width:220px;">
+      <select id="rlResult" onchange="renderInspectionList()" style="height:26px; background:var(--field-bg); border:1px solid var(--field-bd); font-family:inherit; font-size:12px; padding:0 6px;">
+        <option value="">합격여부 전체</option>
+        <option value="합격">합격</option>
+        <option value="부분합격">부분합격</option>
+        <option value="불합격">불합격</option>
+      </select>
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('rlSearch').value='';document.getElementById('rlResult').value='';renderInspectionList()">지우기</button>
+      <span class="summary" id="rlCount"></span>
+    </div>
     <div id="recentList" style="font-size:12px; color:var(--lbl);">불러오는 중...</div>
   </div>
 </div>
@@ -195,8 +210,11 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
 <div id="printView">
   <div class="print-toolbar">
     <button type="button" class="btn btn-ghost" onclick="hidePrintPreview()">← 편집으로</button>
-    <button type="button" class="btn" onclick="window.print()">🖨 인쇄 / PDF 저장</button>
+    <button type="button" class="btn btn-ghost" onclick="downloadExcel()">⬇ 엑셀 다운로드</button>
+    <button type="button" class="btn btn-ghost" onclick="downloadPDF()">⬇ PDF 다운로드</button>
+    <button type="button" class="btn" onclick="window.print()">🖨 인쇄</button>
   </div>
+  <div class="msg" id="downloadMsg" style="max-width:900px; margin:0 auto 10px; text-align:right;"></div>
 
   <div class="pdf-page" id="printPage1" style="min-height:1123px; display:flex; flex-direction:column;">
     <div class="doc-titlebox"><span>자재검수서</span></div>
@@ -233,6 +251,10 @@ td.del{cursor:pointer; color:var(--err); font-weight:800; width:36px;}
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- 엑셀/PDF 다운로드용(2026-09-14). 둘 다 서버 없이 브라우저에서 직접 파일을 만든다. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 document.getElementById('inDate').value = todayStr();
 
@@ -585,9 +607,85 @@ function buildPrintView(itemRows, head, photoList){
         + '</div></div>';
     }).join('');
   }
+  // PDF·엑셀 다운로드는 지금 화면에 그려진 것과 같은 데이터를 써야 하므로 여기 저장해둔다.
+  lastPrintCtx = {itemRows:itemRows, head:head, photoList:photoList||[]};
+}
+var lastPrintCtx = null;
+
+/* ── PDF / 엑셀 다운로드(2026-09-14, 사용자 요청) ─────────────────────
+   서버 없이 브라우저에서 바로 파일을 만든다. PDF는 화면에 그려진 인쇄본(사진 포함)을
+   그대로 캡처해서 이미지로 넣고(html2canvas+jsPDF), 엑셀은 값 그대로 표로 넣는다(SheetJS). */
+function setDownloadMsg(m,c){ var e=document.getElementById('downloadMsg'); if(e){ e.textContent=m||''; e.style.color=c||'var(--lbl)'; } }
+function waitForImages(){
+  var imgs = Array.prototype.slice.call(document.querySelectorAll('#printPage1 img, #printPage2 img'));
+  return Promise.all(imgs.map(function(img){
+    if(img.complete) return Promise.resolve();
+    return new Promise(function(resolve){ img.onload=img.onerror=resolve; });
+  }));
+}
+async function downloadPDF(){
+  if(!lastPrintCtx){ return; }
+  if(!window.html2canvas || !window.jspdf){ setDownloadMsg('❌ PDF 라이브러리를 불러오지 못했습니다 — 새로고침 후 다시 시도해주세요','var(--err)'); return; }
+  setDownloadMsg('PDF 만드는 중...','var(--lbl)');
+  try{
+    await waitForImages();   // 사진이 다 로드되기 전에 캡처하면 빈 칸으로 찍힌다
+    var jsPDF = window.jspdf.jsPDF;
+    var doc = new jsPDF({unit:'px', format:[794,1123], orientation:'portrait'});
+    var pageEls = [document.getElementById('printPage1')];
+    if(document.getElementById('printPage2').style.display !== 'none') pageEls.push(document.getElementById('printPage2'));
+    for(var i=0;i<pageEls.length;i++){
+      var canvas = await html2canvas(pageEls[i], {scale:2, useCORS:true, backgroundColor:'#ffffff'});
+      var imgData = canvas.toDataURL('image/jpeg', 0.92);
+      if(i>0) doc.addPage([794,1123], 'portrait');
+      doc.addImage(imgData, 'JPEG', 0, 0, 794, 1123);
+    }
+    doc.save('자재검수서_'+(lastPrintCtx.head.doc||'문서')+'.pdf');
+    setDownloadMsg('✓ PDF 다운로드됨','var(--ok)');
+  }catch(e){
+    console.error('PDF 생성 실패', e);
+    setDownloadMsg('❌ PDF 생성 실패: '+(e.message||e),'var(--err)');
+  }
+}
+function downloadExcel(){
+  if(!lastPrintCtx) return;
+  if(!window.XLSX){ setDownloadMsg('❌ 엑셀 라이브러리를 불러오지 못했습니다 — 새로고침 후 다시 시도해주세요','var(--err)'); return; }
+  var head = lastPrintCtx.head;
+  var infoRows = [
+    ['검수일자', head.date||''], ['검수번호', head.doc||''], ['공급업체', head.supplier||''],
+    ['인수자', head.taker||''], ['검수자', head.inspector||''], ['자재보관장소', head.place||''],
+    ['비고', head.note||'']
+  ];
+  var itemHeader = ['품목','규격','단위','발주수량','인수수량','불합격수량','합격여부'];
+  var itemData = lastPrintCtx.itemRows.map(function(r){
+    var ordered = orderedOf(r.cat, r.spec);
+    var res = rowResult(r);
+    return [r.cat, r.spec||'', unitOfCat(r.cat), ordered===null?'':ordered, Number(r.accept)||0, Number(r.reject)||0, res.label];
+  });
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(infoRows), '정보');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([itemHeader].concat(itemData)), '품목');
+  XLSX.writeFile(wb, '자재검수서_'+(head.doc||'문서')+'.xlsx');
+  setDownloadMsg('✓ 엑셀 다운로드됨','var(--ok)');
+}
+/* 검수서 조회 목록 전체를 한 장의 엑셀로 — 자재관리 이력·감사용(2026-09-14). */
+function downloadAllExcel(){
+  if(!window.XLSX){ alert('엑셀 라이브러리를 불러오지 못했습니다 — 새로고침 후 다시 시도해주세요'); return; }
+  var header = ['날짜','검수번호','공급업체','검수자','인수자','품목','규격','단위','인수수량','불합격수량','합격여부','비고'];
+  var data = [];
+  filteredInspectionGroups().forEach(function(g){
+    g.rows.forEach(function(m){
+      data.push([g.date, g.doc_no, g.supplier||'', g.inspector||'', g.taker||'', m.cat, m.spec||'', m.unit||'', num(m.qty), num(m.reject_qty||0), m.result||'', m.note||'']);
+    });
+  });
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header].concat(data)), '검수서 전체');
+  XLSX.writeFile(wb, '자재검수서_전체_'+todayStr()+'.xlsx');
 }
 
-/* ── 최근 검수서(자재관리와 연동 — doc_no별로 묶어서 보여주고, 클릭하면 인쇄본으로) ── */
+/* ── 검수서 조회(자재관리와 연동 — doc_no별로 묶어서 검색·필터하고, 클릭하면 인쇄본으로) ──
+   "최근 20건"으로 잘라 보여주던 걸 없애고 전체를 불러온 뒤 화면에서 검색·필터한다
+   (2026-09-14, "모든 자재 검수서 조회" 요청). */
+var allInspectionGroups = [];
 async function loadRecent(){
   var el = document.getElementById('recentList');
   if(!sbClient) return;
@@ -605,23 +703,56 @@ async function loadRecent(){
     bySets[key].rows.push(m);
     if(m.photo_urls && m.photo_urls.length) bySets[key].photos = m.photo_urls;
   });
-  var list = Object.values(bySets).sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); }).slice(0,20);
-  if(!list.length){ el.textContent='등록된 검수서가 없습니다'; return; }
-  el.innerHTML = list.map(function(g,idx){
-    var worst = g.rows.some(function(r){ return r.result==='불합격'; }) ? {l:'불합격',c:'err'}
-      : g.rows.some(function(r){ return r.result==='부분합격'; }) ? {l:'부분합격',c:'warn'} : {l:'합격',c:'ok'};
-    return '<div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:'+(idx?'1px solid var(--card-bd)':'none')+';">'
-      + '<span>'+esc(g.date)+' · <b>'+esc(g.doc_no)+'</b> · '+esc(g.supplier||'-')+' · 품목 '+g.rows.length+'건 · <span class="badge '+worst.c+'">'+worst.l+'</span></span>'
-      + '<button type="button" class="btn btn-ghost" onclick="reprintRecent('+idx+')">🖨 다시 보기</button></div>';
-  }).join('');
-  window._recentGroups = list;
+  allInspectionGroups = Object.values(bySets).sort(function(a,b){ return String(b.date).localeCompare(String(a.date)); });
+  renderInspectionList();
 }
-function reprintRecent(idx){
-  var g = window._recentGroups[idx];
+function groupWorst(g){
+  return g.rows.some(function(r){ return r.result==='불합격'; }) ? {l:'불합격',c:'err'}
+    : g.rows.some(function(r){ return r.result==='부분합격'; }) ? {l:'부분합격',c:'warn'} : {l:'합격',c:'ok'};
+}
+function filteredInspectionGroups(){
+  var q = (document.getElementById('rlSearch').value||'').trim().toLowerCase();
+  var want = document.getElementById('rlResult').value;
+  return allInspectionGroups.filter(function(g){
+    if(want && groupWorst(g).l !== want) return false;
+    if(!q) return true;
+    return (g.doc_no||'').toLowerCase().indexOf(q)!==-1 || (g.supplier||'').toLowerCase().indexOf(q)!==-1;
+  });
+}
+function renderInspectionList(){
+  var el = document.getElementById('recentList');
+  var list = filteredInspectionGroups();
+  document.getElementById('rlCount').textContent = '총 '+allInspectionGroups.length+'건 중 '+list.length+'건';
+  if(!allInspectionGroups.length){ el.textContent='등록된 검수서가 없습니다'; return; }
+  if(!list.length){ el.textContent='검색 결과가 없습니다'; return; }
+  window._viewGroups = list;
+  el.innerHTML = '<table class="itbl" style="font-size:12px;"><tr>'
+    + '<th style="width:92px;">날짜</th><th>검수번호</th><th>공급업체</th><th>검수자</th>'
+    + '<th style="width:56px;">품목수</th><th style="width:70px;">결과</th><th style="width:190px;"></th></tr>'
+    + list.map(function(g,idx){
+      var worst = groupWorst(g);
+      return '<tr>'
+        + '<td>'+esc(g.date)+'</td>'
+        + '<td class="al" style="text-align:left;"><b>'+esc(g.doc_no)+'</b></td>'
+        + '<td class="al" style="text-align:left;">'+esc(g.supplier||'-')+'</td>'
+        + '<td class="al" style="text-align:left;">'+esc(g.inspector||'-')+'</td>'
+        + '<td>'+g.rows.length+'</td>'
+        + '<td><span class="badge '+worst.c+'">'+worst.l+'</span></td>'
+        + '<td style="white-space:nowrap;">'
+        +   '<button type="button" class="btn btn-ghost" style="padding:3px 7px;" onclick="viewInspectionGroup('+idx+')">👁 보기</button> '
+        +   '<button type="button" class="btn btn-ghost" style="padding:3px 7px;" onclick="viewInspectionGroup('+idx+',\'excel\')">📊</button> '
+        +   '<button type="button" class="btn btn-ghost" style="padding:3px 7px;" onclick="viewInspectionGroup('+idx+',\'pdf\')">📄</button>'
+        + '</td></tr>';
+    }).join('') + '</table>';
+}
+function viewInspectionGroup(idx, downloadAs){
+  var g = window._viewGroups[idx];
   if(!g) return;
   var itemRows = g.rows.map(function(m){ return {cat:m.cat, spec:m.spec, accept:num(m.qty)+num(m.reject_qty||0), reject:num(m.reject_qty||0)}; });
   buildPrintView(itemRows, {date:g.date, doc:g.doc_no, supplier:g.supplier, taker:g.taker, inspector:g.inspector, place:g.place, note:g.note}, g.photos||[]);
   enterPrintView();
+  if(downloadAs==='excel') downloadExcel();
+  else if(downloadAs==='pdf') downloadPDF();
 }
 
 /* index.html 이력 모달의 "검수 다시 보기"에서 ?doc=검수번호 로 들어오면 바로 인쇄본을 연다

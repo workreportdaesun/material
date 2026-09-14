@@ -214,6 +214,9 @@ html.embed #migBanner:empty{display:none;}
            "입고"는 빠른 보정용으로 그대로 남겨둔다. inspection.html은 저장 시 같은
            material_moves(입고)에 줄을 추가하므로 이 표·이력에 자동으로 반영된다. -->
       <button type="button" class="btn btn-refresh" onclick="location.href='inspection.html'" id="btnInspection">🔍 자재검수서</button>
+      <!-- 청구서 형태로 외부 업체에 자재를 요청하는 화면(2026-09-14) — 검수서(입고 확인)와는
+           별개 문서. material_orders 테이블에 건별로 저장된다. -->
+      <button type="button" class="btn btn-refresh" onclick="location.href='order.html'" id="btnOrder">📝 자재발주서</button>
       <button type="button" class="btn btn-refresh" onclick="toggleAllCats()" id="btnToggleAll">▸ 전체 접기</button>
       <!-- 자재 품목(=시공 작업분류)·규격은 material에 따로 저장소를 두지 않고 report의 app_settings를
            그대로 보고 있으므로, 편집 화면도 새로 만들지 않고 report의 ⚙️설정을 그대로 연다
