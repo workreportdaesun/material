@@ -354,7 +354,7 @@ async function pushSettingsToSupabase(){
   for(var attempt=0; attempt<5; attempt++){
     try{
       var res=await sbClient.from('app_settings').upsert(payload);
-      if(!res.error){ setNote('✓ 저장됨 ('+new Date().toLocaleTimeString('ko-KR')+')','ok'); lastStructKey=structKeyOf(payload); return true; }
+      if(!res.error){ setNote('✓ 저장됨 ('+new Date().toLocaleTimeString('ko-KR')+')','ok'); lastStructKey=structKeyOf(payload); lastPushAt=Date.now(); return true; }
       var m=/Could not find the '([^']+)' column/.exec(res.error.message||'');
       if(m && Object.prototype.hasOwnProperty.call(payload,m[1])){ delete payload[m[1]]; continue; }
       setNote('❌ 저장 실패: '+res.error.message,'err'); return false;
@@ -363,6 +363,7 @@ async function pushSettingsToSupabase(){
   return false;
 }
 
+var lastPushAt=0;
 function subscribeRealtime(){
   if(!sbClient || !sbClient.channel) return;
   sbClient.channel('app_settings_changes_material_settings')
@@ -377,7 +378,10 @@ function subscribeRealtime(){
       settingsLoaded=true;   // 처음 불러오기가 실패했어도 실시간으로 정상 데이터를 받으면 복구
       if(selectedCat && sikongList().indexOf(selectedCat)===-1) selectedCat=null;
       renderItems(); renderSpecs();
-      setNote('다른 화면에서 바뀐 내용을 반영했습니다','ok');
+      // JSONB로 저장했다 되돌아온 값은 키 순서가 우리가 보낸 것과 달라 JSON.stringify 비교가
+      // 어긋날 수 있다 — 그래서 방금(3초 이내) 내가 직접 저장한 직후의 에코는 "다른 화면에서
+      // 바뀜"이라고 잘못 알리지 않도록 조용히 넘어간다(2026-09-14, 실제 테스트로 확인한 문제).
+      if(Date.now()-lastPushAt>3000) setNote('다른 화면에서 바뀐 내용을 반영했습니다','ok');
     })
     .subscribe();
 }
