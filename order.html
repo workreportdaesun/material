@@ -509,9 +509,29 @@ async function exportExcel(head, items){
     {align:LEFT, font:{size:9, italic:true, color:{argb:'FF4A6B8A'}}});
   ws.getRow(5).height = 18;
 
+  // 헤더 아래 붙는 안내문구("품명" 아래 "(계약BM의 품명으로입력)" 등)는 본문구보다 연하게 —
+  // 굵기 보통, 글자 크기도 작게(2026-09-14, 사용자 요청). 한 셀 안에서 굵기가 다른 두 줄을
+  // 넣어야 해서 이 헤더 행만 box()가 아니라 richText로 직접 만든다.
   var headerRowIdx = 6;
-  ['자재분류','품명\n(계약BM의 품명으로입력)','규격\n(계약BM의 규격으로입력)','재질 및 기타사양','단위','금회청구량','계약단가','입고요청일\n(YY-MM-DD)','비고\n(승인업체)']
-    .forEach(function(h,i){ box(headerRowIdx, i+1, headerRowIdx, i+1, h, {font:{bold:true, size:10, color:{argb:'FFFFFFFF'}}, fill:'FF1E3A5F'}); });
+  var HEADER_MAIN_FONT = {bold:true, size:10, color:{argb:'FFFFFFFF'}};
+  var HEADER_SUB_FONT = {bold:false, size:8, color:{argb:'FFFFFFFF'}};
+  [ '자재분류', ['품명','(계약BM의 품명으로입력)'], ['규격','(계약BM의 규격으로입력)'], '재질 및 기타사양',
+    '단위', '금회청구량', '계약단가', ['입고요청일','(YY-MM-DD)'], ['비고','(승인업체)']
+  ].forEach(function(h,i){
+    var cell = ws.getCell(headerRowIdx, i+1);
+    cell.border = BORDER_ALL;
+    cell.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FF1E3A5F'}};
+    cell.alignment = {horizontal:'center', vertical:'middle', wrapText:true, textRotation:0};
+    if(Array.isArray(h)){
+      cell.value = { richText: [
+        {font:HEADER_MAIN_FONT, text:h[0]},
+        {font:HEADER_SUB_FONT, text:'\n'+h[1]}
+      ]};
+    } else {
+      cell.value = h;
+      cell.font = HEADER_MAIN_FONT;
+    }
+  });
   ws.getRow(headerRowIdx).height = 30;
 
   var r = headerRowIdx;
