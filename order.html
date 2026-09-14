@@ -372,32 +372,62 @@ function buildPrintView(head, items){
   }).join('');
 }
 
-/* ── 엑셀 다운로드 ─────────────────────────────────────────────── */
+/* ── 엑셀 다운로드 ─────────────────────────────────────────────────
+   원본 발주서 서식(청구서번호/현장명 표 → 자재분류 안내 → 9열 품목표 → 주의문구 →
+   특이사항)을 셀 배치까지 그대로 복제한다 — 다운로드한 엑셀을 그대로 복사해서
+   회사 시스템에 붙여넣어도 표 구조가 어긋나지 않아야 하기 때문(2026-09-14,
+   사용자 요청 "서식이 변하면 안됨"). 품목표는 9열로 자재관리 화면과 동일 순서. */
 function exportExcel(head, items){
   if(typeof XLSX==='undefined'){ alert('엑셀 모듈을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.'); return; }
   if(!items.length){ alert('내보낼 품목이 없습니다.'); return; }
   var aoa = [];
-  aoa.push(['자재 발주서']);
-  aoa.push(['현장명', head.site_name||'', '', '청구서번호', head.request_no||'']);
-  aoa.push(['수령자', head.recipient||'', '', '현장연락처', head.site_contact||'']);
-  aoa.push(['화물 & 주소', head.address||'']);
-  aoa.push([]);
-  aoa.push(['자재분류','품명','규격','재질 및 기타사양','단위','금회청구량','계약단가','입고요청일','비고(승인업체)']);
+  var merges = [];
+  function push9(a){ while(a.length<9) a.push(''); aoa.push(a); }
+  function mergeRow(r, c1, c2){ merges.push({s:{r:r,c:c1}, e:{r:r,c:c2}}); }
+
+  push9(['자재 발주서']); mergeRow(0,0,8);
+
+  push9(['현장명', head.site_name||'', '', '', '', '', '청구서번호', head.request_no||'', '']);
+  mergeRow(1,1,5); mergeRow(1,7,8);
+
+  push9(['수령자', head.recipient||'', '', '', '', '', '현장연락처', head.site_contact||'', '']);
+  mergeRow(2,1,5); mergeRow(2,7,8);
+
+  push9(['화물 & 주소', head.address||'']);
+  mergeRow(3,1,8);
+
+  push9([]);
+
+  push9(['자재분류 : 1-주자재, 2-소모잡자재, 3-공구, 4-소모공구, 5-비품, 6-가설, 7-안전관리비 청구품목, 8-외주, 9-임대, 10-피복비']);
+  mergeRow(5,0,8);
+
+  var headerRow = aoa.length;
+  push9([
+    '자재분류', '품명\n(계약BM의 품명으로입력)', '규격\n(계약BM의 규격으로입력)', '재질 및 기타사양',
+    '단위', '금회청구량', '계약단가', '입고요청일\n(YY-MM-DD)', '비고\n(승인업체)'
+  ]);
+
   items.forEach(function(r){
-    aoa.push([
+    push9([
       r.cat+'-'+(CAT_LABELS[r.cat]||''), r.name||'', r.spec||'', r.material||'',
       r.unit||'', (r.qty===''?'':Number(r.qty)), r.price||'', r.need_date||'', r.vendor||''
     ]);
   });
-  aoa.push([]);
-  aoa.push(['특이사항', head.remarks||'']);
+
+  push9([]);
+  push9(['* 부득이하게 선발주시 청구서에 선발주 표기하여 주시고, 발주업체 정보(담당자, 연락처, 이메일, 결제조건, 견적서) 자료 첨부']);
+  mergeRow(aoa.length-1,0,8);
+  push9(['* 비고(승인업체)란에 확정 아닌 업체명 기재금지']);
+  mergeRow(aoa.length-1,0,8);
+
+  push9([]);
+  push9(['특이사항', head.remarks||'']);
+  mergeRow(aoa.length-1,1,8);
 
   var ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws['!cols'] = [{wch:14},{wch:18},{wch:16},{wch:28},{wch:8},{wch:10},{wch:10},{wch:12},{wch:16}];
-  ws['!merges'] = [
-    {s:{r:0,c:0}, e:{r:0,c:8}},
-    {s:{r:3,c:1}, e:{r:3,c:8}}
-  ];
+  ws['!cols'] = [{wch:9},{wch:16},{wch:16},{wch:26},{wch:7},{wch:10},{wch:10},{wch:13},{wch:14}];
+  ws['!rows'] = []; ws['!rows'][headerRow] = {hpt:30};
+  ws['!merges'] = merges;
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '발주서');
   var fname = '자재발주서_'+(head.request_no||todayStr())+'.xlsx';
