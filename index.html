@@ -235,14 +235,17 @@ html.embed #migBanner:empty{display:none;}
            잔여 = 입고 - 출고 (창고 재고), 미설치 = 출고 - 설치 (현장에 나가 있는 양)이 된다. -->
       <th>품목 (작업분류)</th><th>규격</th><th class="manual">구분</th><th>단위</th>
       <th class="right manual">계약 수량</th><th class="right manual">산출 수량</th><th class="right manual">발주 수량</th>
+      <!-- 2026-09-14: 계약단가/구매단가 2열 추가. 계약단가는 계약내역서 기준 직접 입력(계약수량과 같은
+           저장소), 구매단가는 본사 자재투입내역 연동 예정 — 지금은 자리만 두고 채우지 않는다. -->
+      <th class="right manual">계약단가</th><th class="right" title="본사 자재투입내역 연동 예정(추후 반영)">구매단가</th>
       <th class="right">입고</th><th class="right">출고</th><th class="right">잔여 수량</th>
       <th class="right">설치</th><th class="right">미설치</th>
     </tr>
-    <tbody id="matRows"><tr><td colspan="12" class="empty">불러오는 중...</td></tr></tbody>
+    <tbody id="matRows"><tr><td colspan="14" class="empty">불러오는 중...</td></tr></tbody>
   </table>
   </div>
   <div class="save-note" id="saveNote" style="margin-top:8px;"></div>
-  <div class="note">입고는 작업일보 <b>자재</b> 공종이 정본입니다 — 아래 등록창의 <b>입고</b>는 일보에 올리지 않은 건만 넣어주세요(같이 넣으면 두 번 계산됩니다). <b>출고</b>는 창고에서 실제로 불출한 양이고, <b>설치</b>는 작업일보 <b>시공</b> 공종에서 자동으로 옵니다. 잔여 = 입고 − 출고(창고 재고), 미설치 = 출고 − 설치(현장에 나가 있는 양).</div>
+  <div class="note">입고는 작업일보 <b>자재</b> 공종이 정본입니다 — 아래 등록창의 <b>입고</b>는 일보에 올리지 않은 건만 넣어주세요(같이 넣으면 두 번 계산됩니다). <b>출고</b>는 창고에서 실제로 불출한 양이고, <b>설치</b>는 작업일보 <b>시공</b> 공종에서 자동으로 옵니다. 잔여 = 입고 − 출고(창고 재고), 미설치 = 출고 − 설치(현장에 나가 있는 양). <b>계약단가</b>는 계약내역서 기준으로 직접 입력합니다(규격마다 다를 수 있어 분류 합계행은 비워둡니다). <b>구매단가</b>는 본사 자재투입내역과 연동할 예정으로 지금은 비어 있습니다.</div>
 </div>
 
 <!-- ── 입출고 등록 ─────────────────────────────────────────────────
@@ -336,6 +339,14 @@ var sbClient=(typeof supabase!=='undefined')?supabase.createClient(SUPABASE_URL,
 /* ordered(발주수량)는 앞으로 만들 자재발주 앱이 같은 app_settings.material_qty를 읽고 쓸 자리다 —
    키 이름(contract/takeoff/ordered)과 '분류명|규격' 키 형식을 그쪽에서도 그대로 써야 한다. */
 var MAT_FIELDS=[{key:'contract',label:'계약수량'},{key:'takeoff',label:'산출수량'},{key:'ordered',label:'발주수량'}];
+/* 계약단가/구매단가(2026-09-14) — 수량 3열과 같은 저장소(material_qty.jsonb)에 규격 단위(=matVal의
+   key='분류|규격')로 얹는다. 계약단가는 계약내역서 금액을 사람이 직접 입력하는 값이라 저장·조회는
+   MAT_FIELDS와 완전히 같은 saveMatQty/matVal을 그대로 재사용한다. 다만 단가는 규격마다 달라서
+   분류 합계행에서 더하면 뜻이 없는 숫자가 되므로(수량처럼 sum이 아님), catTotal에는 넣지 않고
+   합계행·규격미지정행은 그냥 '-'로 비워 보여준다.
+   구매단가는 본사 자재투입내역(본사 시스템)과 연동할 자리 — 아직 연동 전이라 값도 입력칸도 없이
+   빈 칸만 만들어두고 열 제목에 안내 툴팁만 달아둔다. 연동 시엔 이 자리에 표시만 바꾸면 된다. */
+var PRICE_FIELDS=[{key:'contractPrice', label:'계약단가'}];
 var materialQty={}, matCats=[], matQtyColumnOk=true, specsByCat={};
 /* 입출고 대장(material_moves) — 전표 한 줄이 한 행이다. 표의 입고/출고 열은 여기 합계를 쓴다.
    부호 규칙: 입고 +재고, 출고 -재고, 반품 -재고(공급사로 되돌림), 조정 ±재고(실사 보정, 음수 허용).
@@ -560,11 +571,12 @@ function renderRows(){
       // 합계행은 읽기 전용 — 규격 줄에 넣은 값의 합을 보여준다.
       manualCells=MAT_FIELDS.map(function(f){
         return '<td class="right cat-row"><span id="ct-'+i+'-'+f.key+'">'+catTotal(r.cat,f.key)+'</span></td>';
-      }).join('');
+      }).join('') + '<td class="right cat-row dim">-</td><td class="right cat-row dim">-</td>';
     } else if(r.type==='blank'){
       nameCell='<td class="name sub"></td>';
       specCell='<td class="dim"><span class="sub-mark">└</span>(규격 미지정)</td>';
-      manualCells=MAT_FIELDS.map(function(){ return '<td class="right dim">-</td>'; }).join('');
+      manualCells=MAT_FIELDS.map(function(){ return '<td class="right dim">-</td>'; }).join('')
+        + '<td class="right dim">-</td><td class="right dim">-</td>';
     } else {
       nameCell='<td class="name sub">'+(r.type==='single'?esc(r.cat):'')
         +(r.type==='single'?'<span class="hist-btn" title="입출고 이력" onclick="openHist('+i+')">📋</span>':'')+'</td>';
@@ -577,6 +589,14 @@ function renderRows(){
           +' value="'+esc(matVal(r.key,f.key))+'" placeholder="-"'+(matQtyColumnOk?'':' disabled')
           +' onchange="saveMatQty('+i+',\''+f.key+'\',this.value)"></td>';
       }).join('');
+      // 계약단가 — 수량 3열과 같은 방식(직접 입력)으로 규격/단독행에만 입력칸을 둔다.
+      manualCells += PRICE_FIELDS.map(function(f){
+        return '<td class="right manual"><input type="number" class="qty-inp" id="mq-'+i+'-'+f.key+'"'
+          +' value="'+esc(matVal(r.key,f.key))+'" placeholder="-"'+(matQtyColumnOk?'':' disabled')
+          +' onchange="saveMatQty('+i+',\''+f.key+'\',this.value)"></td>';
+      }).join('');
+      // 구매단가 — 본사 자재투입내역 연동 예정(추후 반영), 지금은 빈 칸만 둔다.
+      manualCells += '<td class="right dim" title="본사 자재투입내역 연동 예정(추후 반영)">-</td>';
     }
     return '<tr'+(r.type==='cat'?' class="cat-tr"':'')+'>'+nameCell+specCell+kindCell+'<td>'+esc(r.unit)+'</td>'
       + manualCells
@@ -587,7 +607,7 @@ function renderRows(){
       +'<td class="right '+unfitClass+'">'+num(unfit)+'</td></tr>';
   }).join('');
   wrap.innerHTML = shown ? html
-    : '<tr><td colspan="12" class="empty">'+(f.filtering?'검색 결과가 없습니다':'표시할 품목이 없습니다')+'</td></tr>';
+    : '<tr><td colspan="14" class="empty">'+(f.filtering?'검색 결과가 없습니다':'표시할 품목이 없습니다')+'</td></tr>';
   // 전체 품목 수는 합계행(type==='cat')과 규격 없는 단독행(type==='single') 개수로 센다.
   var totalCats = matRows.filter(function(r){ return r.type==='cat'||r.type==='single'; }).length;
   var shownCats = matRows.filter(function(r,i){ return f.vis[i] && (r.type==='cat'||r.type==='single'); }).length;
@@ -630,7 +650,8 @@ async function saveMatQty(idx, field, raw){
     if(res.error) throw new Error(res.error.message);
     materialQty=merged;
     if(inp){ inp.classList.remove('saving'); inp.classList.add('saved'); }
-    setSaveNote('✓ '+row.cat+(row.spec?' / '+row.spec:'')+' '+(MAT_FIELDS.find(function(f){return f.key===field;})||{}).label+' 저장됨', 'var(--ok)');
+    var fieldInfo=MAT_FIELDS.concat(PRICE_FIELDS).find(function(f){return f.key===field;});
+    setSaveNote('✓ '+row.cat+(row.spec?' / '+row.spec:'')+' '+(fieldInfo?fieldInfo.label:field)+' 저장됨', 'var(--ok)');
     renderCatTotals();   // 합계행(분류)의 계약/산출/발주 숫자를 즉시 다시 계산
   }catch(e){
     console.error('자재 수량 저장 실패', e);
@@ -660,8 +681,8 @@ async function fetchAllRows(table, columns, orderCols){
 
 async function loadMaterialData(){
   var wrap = document.getElementById('matRows');
-  if(!sbClient){ wrap.innerHTML='<tr><td colspan="12" class="empty">Supabase 연결 실패</td></tr>'; return; }
-  wrap.innerHTML='<tr><td colspan="12" class="empty">불러오는 중...</td></tr>';
+  if(!sbClient){ wrap.innerHTML='<tr><td colspan="14" class="empty">Supabase 연결 실패</td></tr>'; return; }
+  wrap.innerHTML='<tr><td colspan="14" class="empty">불러오는 중...</td></tr>';
   setSaveNote('');
   try{
     var reportsRes = await fetchAllRows('daily_reports','id,items',['id']);
@@ -681,7 +702,7 @@ async function loadMaterialData(){
     else { matMovesTableOk=true; matMoves=movesRes.data||[]; }
 
     renderMigBanner();
-    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패</td></tr>'; return; }
+    if(reportsRes.error || !reportsRes.data){ wrap.innerHTML='<tr><td colspan="14" class="empty">불러오기 실패</td></tr>'; return; }
     var sd = settingsRes.data || {};
     var itemUnit = sd.item_unit || {};
     materialQty = sd.material_qty || {};
@@ -798,13 +819,13 @@ async function loadMaterialData(){
     });
 
     if(!matRows.length){
-      wrap.innerHTML='<tr><td colspan="12" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
+      wrap.innerHTML='<tr><td colspan="14" class="empty">표시할 품목이 없습니다(작업일보 ⚙️작업분류 설정을 확인해주세요)</td></tr>';
     } else {
       renderRows();
     }
   }catch(e){
     console.error('자재 데이터 불러오기 실패', e);
-    wrap.innerHTML='<tr><td colspan="12" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
+    wrap.innerHTML='<tr><td colspan="14" class="empty">불러오기 실패: '+(e.message||e)+'</td></tr>';
   }
 }
 /* 작업일보 ⚙️설정에서 규격·작업분류·단위를 고치면 새로고침 없이 바로 따라간다 —
