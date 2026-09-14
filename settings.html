@@ -27,6 +27,9 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); displ
 .hdr .sub{font-size:12px; opacity:.85; margin-top:2px;}
 .hdr .x{border:none; background:rgba(255,255,255,.18); color:#fff; width:30px; height:30px; border-radius:50%;
   font-size:15px; cursor:pointer;}
+.readonly-banner{background:#FDF3E3; color:#A05A18; border-bottom:1px solid #F0DDB8; padding:9px 20px;
+  font-size:13px; font-weight:700; flex-shrink:0; display:none;}
+.readonly-banner.show{display:block;}
 .panes{flex:1; min-height:0; display:flex; gap:16px; padding:16px 20px;}
 .pane{background:var(--card); border:1px solid var(--card-bd); display:flex; flex-direction:column; min-height:0;}
 .pane-items{width:320px; flex-shrink:0;}
@@ -73,6 +76,7 @@ body{background:var(--bg); color:var(--ink); font-family:var(--font-body); displ
   </div>
   <button type="button" class="x" onclick="window.close()" title="닫기">✕</button>
 </div>
+<div class="readonly-banner" id="readonlyBanner">👁️ 보기 전용 — 품목·규격 추가/수정/삭제는 운영자만 할 수 있습니다 (현재 내 등급으로는 편집 버튼이 보이지 않습니다)</div>
 
 <div class="panes">
   <div class="pane pane-items">
@@ -122,6 +126,19 @@ function setNote(msg, cls){
   var el=document.getElementById('ftNote');
   el.textContent=msg||''; el.className='note'+(cls?' '+cls:'');
 }
+/* onclick 핸들러 안에서 나는 에러(동기 예외든, await한 Promise가 reject됐든)는 원래 그냥
+   콘솔에만 찍히고 화면에는 "아무 반응 없음"으로 보인다 — 그래서 "수정 저장이 안 됨" 신고를
+   받고도 코드만 봐서는 정확히 뭐가 실패하는지 알 수 없었다(2026-09-14). 안전망으로 전역
+   에러/미처리 Promise reject를 잡아 상태줄에 그대로 보여주도록 추가 — 다음에 또 안 되면
+   이 메시지로 바로 원인을 알 수 있다. */
+window.addEventListener('error', function(e){
+  console.error('설정창 오류', e.error||e.message);
+  setNote('❌ 오류: '+((e.error&&e.error.message)||e.message||e), 'err');
+});
+window.addEventListener('unhandledrejection', function(e){
+  console.error('설정창 오류(Promise)', e.reason);
+  setNote('❌ 오류: '+((e.reason&&e.reason.message)||e.reason), 'err');
+});
 
 var settingsLoaded=false;   // 로딩 자체가 실패했으면 절대 저장을 시도하지 않는다 — 안 그러면
                              // 못 불러온 기존 목록을 빈 값으로 덮어써버리는 사고가 난다.
@@ -153,7 +170,7 @@ var isAdmin=false;
 function applyAdminGate(){
   isAdmin = (typeof wrRoleAtLeast==='function') ? wrRoleAtLeast('admin') : false;
   document.querySelectorAll('.add-row').forEach(function(el){ el.style.display = isAdmin ? '' : 'none'; });
-  if(!isAdmin) setNote('보기 전용 — 품목·규격 추가/수정/삭제는 운영자만 할 수 있습니다');
+  document.getElementById('readonlyBanner').classList.toggle('show', !isAdmin);
 }
 
 function renderItems(){
@@ -170,13 +187,15 @@ function renderItems(){
           +unitOptionsFor(unit).map(function(u){ return '<option value="'+u.replace(/"/g,'&quot;')+'"'+(u===unit?' selected':'')+'>'+esc(u)+'</option>'; }).join('')
           +'</select>'
       : '<span class="unit">'+esc(unit)+'</span>';
+    // 편집 버튼은 운영자에게만 보인다 — 예전엔 항상 그려두고 클릭 핸들러 안에서만 막아서,
+    // 현장관리자가 눌러도 "버튼은 있는데 눌러도 반응이 없다"는 걸로 보였다(2026-09-14).
     return '<div class="row'+(cat===selectedCat?' sel':'')+'" onclick="selectItem('+i+')">'
-      +'<button type="button" class="mv" onclick="event.stopPropagation();moveItem('+i+',-1)" '+(i===0?'disabled':'')+'>▲</button>'
-      +'<button type="button" class="mv" onclick="event.stopPropagation();moveItem('+i+',1)" '+(i===list.length-1?'disabled':'')+'>▼</button>'
+      +(isAdmin ? '<button type="button" class="mv" onclick="event.stopPropagation();moveItem('+i+',-1)" '+(i===0?'disabled':'')+'>▲</button>'
+      +'<button type="button" class="mv" onclick="event.stopPropagation();moveItem('+i+',1)" '+(i===list.length-1?'disabled':'')+'>▼</button>' : '')
       +'<span class="name">'+esc(cat)+'</span>'
       +unitCell
-      +'<button type="button" class="ic" onclick="event.stopPropagation();editItem('+i+')" title="이름 수정">✏️</button>'
-      +'<button type="button" class="ic" onclick="event.stopPropagation();removeItem('+i+')" title="삭제">✕</button>'
+      +(isAdmin ? '<button type="button" class="ic" onclick="event.stopPropagation();editItem('+i+')" title="이름 수정">✏️</button>'
+      +'<button type="button" class="ic" onclick="event.stopPropagation();removeItem('+i+')" title="삭제">✕</button>' : '')
       +'</div>';
   }).join('');
 }
@@ -280,11 +299,11 @@ function renderSpecs(){
   if(!specs.length){ body.innerHTML='<div class="empty-hint">등록된 규격이 없습니다 — 규격 없이도 자재관리에서 바로 쓸 수 있습니다</div>'; return; }
   body.innerHTML=specs.map(function(s,i){
     return '<div class="row">'
-      +'<button type="button" class="mv" onclick="moveSpec('+i+',-1)" '+(i===0?'disabled':'')+'>▲</button>'
-      +'<button type="button" class="mv" onclick="moveSpec('+i+',1)" '+(i===specs.length-1?'disabled':'')+'>▼</button>'
+      +(isAdmin ? '<button type="button" class="mv" onclick="moveSpec('+i+',-1)" '+(i===0?'disabled':'')+'>▲</button>'
+      +'<button type="button" class="mv" onclick="moveSpec('+i+',1)" '+(i===specs.length-1?'disabled':'')+'>▼</button>' : '')
       +'<span class="name">'+esc(s)+'</span>'
-      +'<button type="button" class="ic" onclick="editSpec('+i+')" title="수정">✏️</button>'
-      +'<button type="button" class="ic" onclick="removeSpec('+i+')" title="삭제">✕</button>'
+      +(isAdmin ? '<button type="button" class="ic" onclick="editSpec('+i+')" title="수정">✏️</button>'
+      +'<button type="button" class="ic" onclick="removeSpec('+i+')" title="삭제">✕</button>' : '')
       +'</div>';
   }).join('');
 }
