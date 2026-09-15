@@ -7,10 +7,6 @@
 <link rel="icon" type="image/png" href="https://workreportdaesun.github.io/report/app/icon-192.png"/>
 <!-- 자재관리는 현장관리자 이상. 작업자(worker)는 출퇴근체크로 돌려보낸다. -->
 <script src="/report/role-gate.js" data-require="manager" data-login="/report/app/login.html"></script>
-<!-- ?embed=1 로 열리면 다른 앱(인원투입계획/실투입)의 탭 안에 iframe으로 들어간 상태다.
-     이때는 자기 헤더·플로팅 이동 버튼·관리자 PIN을 띄우지 않는다 — 바깥 앱이 이미 갖고 있어
-     두 겹으로 보이기 때문. 주소로 직접 열면(embed 없음) 지금까지와 똑같이 동작한다. -->
-<script>if(/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('embed');</script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -23,18 +19,6 @@
 body{background:var(--bg); color:var(--ink); font-family:var(--font-body); min-height:100vh;}
 /* PC 전용 화면 — 가로 폭 제한 없이 모니터 전체를 쓴다(기존 1100px 상한 제거, 2026-08-11) */
 .wrap{width:100%; padding:24px 20px 60px;}
-/* 삽입(embed) 모드 — 바깥 앱 탭 안이라 자기 헤더는 빼고 여백도 줄인다. 배경도 투명하게 두어
-   바깥 카드 색을 그대로 쓰고, iframe 높이는 부모가 내용 높이에 맞춰준다. */
-html.embed, html.embed body{background:transparent;}
-html.embed .hdr{display:none;}
-html.embed .wrap{padding:0;}   /* 바깥 카드가 이미 여백을 준다 — 두 겹이 되지 않게 */
-/* 표를 창 아래 끝까지 채운다(2026-08-11) — 높이를 계산하지 않고 세로 flex로 남는 공간을
-   표에 전부 넘긴다. 물량소화산출 탭이 카드를 꽉 채우는 것과 같은 결과. */
-html.embed, html.embed body{height:100%;}
-html.embed body{overflow:hidden;}
-html.embed .wrap{height:100%; display:flex; flex-direction:column; min-height:0;}
-html.embed .tablewrap{flex:1 1 auto; min-height:0;}
-html.embed #migBanner:empty{display:none;}
 .hdr{background:linear-gradient(135deg,var(--brand-1),var(--brand-2)); border-radius:0; padding:16px 20px; margin-bottom:20px; color:#fff; display:flex; justify-content:space-between; align-items:center;}
 .hdr h1{font-size:19px; font-weight:800;}
 .hdr .proj{font-size:12px; opacity:.85; margin-top:2px;}
@@ -125,11 +109,7 @@ html.embed #migBanner:empty{display:none;}
 .unfit-pos{color:var(--warn); font-weight:800;}   /* 미설치가 남아 있음 = 현장에 나가 있는 양 */
 .unfit-neg{color:var(--err); font-weight:800;}    /* 설치가 출고보다 많음 = 불출 기록 누락 */
 
-/* ── 입출고 등록 / 이력 모달 ────────────────────────────────────────
-   ⚠️ 이 앱은 인원투입계획/실투입(status)의 자재관리 탭 안에 iframe으로도 들어간다.
-      그쪽은 .embed-wrap{overflow:hidden}이고 iframe 높이가 화면에 맞춰 고정돼 있어서,
-      position:fixed 모달은 "브라우저 창"이 아니라 "iframe 사각형" 기준으로 그려진다.
-      그래서 높이를 vh로 잡으면 iframe보다 커져 잘린다 — 반드시 %와 max-height로 가둔다. */
+/* ── 입출고 등록 / 이력 모달 ──────────────────────────────────────── */
 .modal-back{position:fixed; inset:0; background:rgba(26,35,50,.45); display:none;
   align-items:center; justify-content:center; padding:12px; z-index:50;}
 .modal-back.show{display:flex;}
@@ -179,10 +159,9 @@ html.embed #migBanner:empty{display:none;}
 </style>
 </head>
 <body>
-<!-- 삽입 모드에서는 관리자 PIN을 다시 묻지 않는다 — 바깥 앱에서 이미 통과했다. -->
-<script>if(!document.documentElement.classList.contains('embed')){
+<script>
   var _ag=document.createElement('script'); _ag.src='https://workreportdaesun.github.io/report/admin-gate.js'; document.head.appendChild(_ag);
-}</script>
+</script>
 <div class="wrap">
   <div class="hdr">
     <div>
@@ -1069,7 +1048,6 @@ function subscribeMovesRealtime(){
    아래에 빈 공간이 남거나 넘쳤다 — 표 틀의 실제 위치를 재서 남는 높이를 전부 준다.
    저장 안내줄이 나중에 채워지므로 그 높이도 빼둔다. */
 function fitMatTableHeight(){
-  if(document.documentElement.classList.contains('embed')) return;   // 삽입 모드는 CSS(flex)가 처리
   var wrap=document.getElementById('matWrap');
   if(!wrap) return;
   var note=document.getElementById('saveNote');
@@ -1085,9 +1063,8 @@ subscribeMovesRealtime();
 </script>
 
 <!-- 앱 공용 이동 버튼. 파일은 report 저장소에 하나만 두고 각 앱이 절대경로로 불러온다. -->
-<!-- 삽입 모드에서는 플로팅 이동 버튼도 띄우지 않는다 — 바깥 앱 것과 두 개가 된다. -->
-<script>if(!document.documentElement.classList.contains('embed')){
+<script>
   var _nf=document.createElement('script'); _nf.src='/report/nav-fab.js'; document.body.appendChild(_nf);
-}</script>
+</script>
 </body>
 </html>
